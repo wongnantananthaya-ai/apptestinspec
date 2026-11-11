@@ -1615,6 +1615,12 @@
       <section class="group"><button type="button" class="btn-block primary" id="doPrint">พิมพ์ / บันทึกเป็น PDF</button>
       <p class="group-f">ในหน้าพิมพ์ เลือกเครื่องพิมพ์ หรือเลือก "บันทึกเป็น PDF" (Android) · กดแชร์แล้วเลือกพิมพ์ จากนั้นถ่างนิ้วที่ตัวอย่างเพื่อได้ PDF (iPhone)</p></section>
       <div class="pprev" id="pprev"><div class="pprev-in" id="pprevIn">${s.html}</div></div>`;
+    // Without the form picture the printout is bare numbers: say so plainly instead of showing a broken image
+    const bgFailed = () => {
+      if ($('bgErr')) return;
+      $('pprev').insertAdjacentHTML('beforebegin', `<div class="banner" id="bgErr" role="alert"><b>ภาพใบฟอร์มยังไม่อยู่ในเครื่องนี้</b>ต่ออินเทอร์เน็ตแล้วเปิดแอปใหม่ 1 ครั้ง ระบบจะเก็บไว้ให้ใช้ตอนออฟไลน์ ตอนนี้พิมพ์ได้แค่ตัวเลข</div>`);
+    };
+    [$('pprevIn'), $('printHost')].forEach(h => { const im = h.querySelector('img.pbg'); if (im) { im.addEventListener('error', bgFailed, { once: true }); if (im.complete && !im.naturalWidth) bgFailed(); } });
     const fit = () => { const box = $('pprev'); if (!box) return; const k = box.clientWidth / s.W; $('pprevIn').style.transform = `scale(${k})`; box.style.height = `${(s.H * k).toFixed(0)}px`; };
     fit(); window.addEventListener('resize', fit, { once: true });
     $('doPrint').addEventListener('click', () => {
@@ -1720,13 +1726,29 @@
   }
   $('app').addEventListener('focusin', (e) => markPoint(e.target, true));
   $('app').addEventListener('focusout', (e) => markPoint(e.target, false));
+  function goNext(el) {
+    const next = nextField(el);
+    if (next) { next.focus({ preventScroll: true }); scrollToEl(next.closest('.item, .task, .row, .stack') || next); }
+    else el.blur();
+  }
   $('app').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.isComposing || e.target.tagName !== 'INPUT' || e.target.type === 'radio') return;
-    const next = nextField(e.target);
     e.preventDefault();
-    if (next) { next.focus({ preventScroll: true }); scrollToEl(next.closest('.item, .task, .row, .stack') || next); }
-    else e.target.blur();
+    goNext(e.target);
   });
+  // A reading box moves on by itself once a complete number has sat untouched for a moment
+  // (phone number pads often have no Enter / Next key). Text fields and notes never move on their own.
+  const AUTO_NEXT_MS = 1500;
+  let autoNext = null;
+  $('app').addEventListener('input', (e) => {
+    const el = e.target;
+    clearTimeout(autoNext);
+    if (el.tagName !== 'INPUT' || !(el.dataset.it || el.dataset.rr) || !el.closest('.box')) return;
+    const v = el.value.trim();
+    if (!/^-?\d+([.,]\d+)?$/.test(v)) return;
+    autoNext = setTimeout(() => { if (document.activeElement === el && el.value.trim() === v) goNext(el); }, AUTO_NEXT_MS);
+  });
+  $('app').addEventListener('focusout', () => clearTimeout(autoNext));
   $('app').addEventListener('change', onInput);
   $('app').addEventListener('click', (e) => {
     if (e.target.id === 'toggleAll') { S.showAll = !S.showAll; saveDraft(); renderForm(); }
@@ -1742,7 +1764,11 @@
   route();
 
   // Keep the app on the phone for use without a network. Browsers allow this only over HTTPS (or localhost).
-  if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => { /* still works online */ });
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* still works online */ });
+    // Each online start tops up the stored files (a first visit may have caught the site half-uploaded)
+    navigator.serviceWorker.ready.then(r => { if (navigator.onLine && r.active) r.active.postMessage('warm'); });
+  }
   </script>
 </body>
 </html>

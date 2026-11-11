@@ -1,7 +1,7 @@
 // Offline support: keeps every file the app needs on the phone.
 // Online: always fetch the newest file (and refresh the stored copy); slow or no network: use the stored copy.
 // Add any new file the app loads to FILES, and bump CACHE when the list changes.
-const CACHE = 'insp-v1';
+const CACHE = 'insp-v2';
 const FILES = [
   './', 'index.html', 'manifest.json', 'murata_logo.png',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
@@ -10,8 +10,16 @@ const FILES = [
 ];
 const WAIT_MS = 3000;   // field networks can hang; after this the stored copy answers
 
+// Store each file on its own: one file missing on the server must not leave the phone with nothing.
+const fillGaps = () => caches.open(CACHE).then(c => Promise.allSettled(FILES.map(f => c.match(f).then(hit => hit || c.add(f)))));
+
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(fillGaps().then(() => self.skipWaiting()));
+});
+
+// The page says 'warm' each time it opens online: whatever an earlier visit missed gets stored now
+self.addEventListener('message', (e) => {
+  if (e.data === 'warm') e.waitUntil(fillGaps());
 });
 
 self.addEventListener('activate', (e) => {
