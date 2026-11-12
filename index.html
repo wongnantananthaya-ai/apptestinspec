@@ -1509,9 +1509,11 @@
     if (f.pumpState) { mark(h.pumpState, 0); mark(h.valveState, 1); }
 
     // Section 1: measured values, one sheet row per item (in sheet order)
+    // An item outside the chosen job / PM round prints "-" in every box it has, so the sheet shows it was not due
+    const dash = (it) => Object.fromEntries([...cellsOf(it, h).filter(c => c.k !== 'rla').map(c => c.k), 'b_avg', 'a_avg', 'avgTime', 'avgDosing'].map(k => [k, '-']));
     const sheetItems = f.m.filter(i => i.type !== 'vunb');
     sheetItems.forEach((it, idx) => {
-      const vals = rec.v[it.id]; const y = L.rows1[idx];
+      const vals = isNeeded(f, it, h) ? rec.v[it.id] : dash(it); const y = L.rows1[idx];
       if (!vals || y == null) return;
       const ng = (k) => judge(it, k, vals[k], vals, h) === 'ng';
       const P = (x, yy, k, c = 1) => put(x, yy, vals[k], { c, ng: ng(k), s: !c });
@@ -1596,8 +1598,12 @@
     const vu = f.m.find(i => i.type === 'vunb'), vm = MANUAL[rec.form] && MANUAL[rec.form].vunb;
     if (vu && vm && rec.v[vu.id]) ['vavg', 'vunb', 'tinc'].forEach((k, j) => put(vm.x, vm.y[j], rec.v[vu.id][k], { c: 1 }));
 
-    // Section 2: tick the chosen column
-    (f.t || []).forEach((t, i) => { const s = rec.t[t.id]; if (s && L.rows2[i] != null) tick(L.tcols[s], L.rows2[i]); });
+    // Section 2: tick the chosen column; a task outside the round gets "-" under ไม่ได้ทำ
+    (f.t || []).forEach((t, i) => {
+      if (L.rows2[i] == null) return;
+      if (!isNeeded(f, t, h)) { put(L.tcols.skip, L.rows2[i], '-', { c: 1 }); return; }
+      const s = rec.t[t.id]; if (s) tick(L.tcols[s], L.rows2[i]);
+    });
 
     // Footer
     const note = [h.comment, ...Object.entries(rec.tn || {}).map(([id, n]) => `ข้อ ${id} ไม่เสร็จ: ${n}`)].filter(Boolean).join(' · ');
