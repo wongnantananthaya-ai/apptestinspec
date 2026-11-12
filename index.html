@@ -171,12 +171,9 @@
     .spec { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin-top: 6px; padding: 6px 10px; border-radius: 10px; background: var(--svc-tint, var(--fill)); line-height: 1.4; }
     .spec span { font-size: var(--fs-2); font-weight: 500; color: var(--label-2); }
     .spec b { font-size: var(--fs-1); font-weight: 700; color: var(--svc, var(--label)); }
-    /* Before / after work: a coloured tag so the two rows are never mixed up */
     .it-row > b { display: block; margin-bottom: 6px; font-weight: 500; font-size: var(--fs-2); color: var(--label-2); }
-    .it-row > b.ba { display: inline-block; padding: 3px 10px; border-radius: 8px; font-size: var(--fs-1); font-weight: 700; }
-    .ba.pre { background: var(--fill); color: var(--label); }
-    .ba.post { background: var(--accent); color: var(--on-accent); }
-    .cell-top .ba { padding: 1px 8px; border-radius: 6px; font-weight: 700; }
+    /* Before / after work: same place and size as before, just bold and dark so they stand out */
+    .it-row > b.ba, .cell-top .ba { font-weight: 700; color: var(--label); }
     .cells { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 8px; }
     .cells.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     /* "R / S / T" in one line, as on the sheet: a slash sits in the gap between boxes */
@@ -282,8 +279,6 @@
     .chip.plain { background: transparent; color: var(--label-2); font-weight: 500; padding: 0 4px; }
     .btn-primary { flex-shrink: 0; min-height: 50px; padding: 0 24px; border-radius: 25px; background: var(--accent); color: var(--on-accent); font-size: var(--fs-1); font-weight: 600; }
     .btn-primary:active { opacity: 0.8; }
-    .btn-draft { flex-shrink: 0; min-height: 50px; padding: 0 14px; border-radius: 25px; background: var(--fill); color: var(--accent); font-size: var(--fs-2); font-weight: 600; }
-    .btn-draft:active { opacity: 0.7; }
     .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 40; max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 14px; background: rgba(28, 28, 30, 0.92); color: #FFFFFF; font-size: var(--fs-2); line-height: 1.4; text-align: center; transform: translate(-50%, 8px); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; }
     .toast.on { opacity: 1; transform: translate(-50%, 0); }
 
@@ -362,7 +357,6 @@
   <div class="toolbar" id="toolbar" hidden>
     <div class="toolbar-in">
       <div class="tally" id="tally" aria-live="polite"></div>
-      <button type="button" class="btn-draft" id="saveDraft">บันทึกร่าง</button>
       <button type="button" class="btn-primary" id="save">บันทึกผล</button>
     </div>
   </div>
@@ -851,7 +845,10 @@
       v: {}, t: {}, tn: {}, rr: {}, autoWhy: '', showAll: false
     };
   }
-  function saveDraft() { if (form) store.set(draftKey(form.id), S); }
+  const editKey = (id) => `insp.edit.${id}`;
+  // Typing is kept as it goes: a new entry under its form, an edit under the result it changes
+  const curKey = () => S.editId ? editKey(S.editId) : draftKey(form.id);
+  function saveDraft() { if (form) store.set(curKey(), S); }
 
   const MACHINE_FIELDS = ['factory', 'subtype', 'models', 'panel', 'phase', 'vclass', 'refr', 'vpModel'];
   function rememberMachine() {
@@ -955,7 +952,7 @@
       return `<button type="button" class="row nrow" data-form="${f.id}">
         ${machIcon(f.id)}
         <span class="main"><b>${esc(f.name)}</b><small>${esc(f.th)}</small></span>
-        ${draft ? `<span class="trail draft">ร่าง${draft.h && draft.h.machine.trim() ? ' · ' + esc(draft.h.machine.trim().toUpperCase()) : 'ค้าง'}</span>` : ''}<span class="mcode">${esc(f.id)}</span>${CHEV}
+        ${draft ? '<span class="trail draft">ร่างค้าง</span>' : ''}<span class="mcode">${esc(f.id)}</span>${CHEV}
       </button>`;
     };
     const count = store.get(HIST, []).length;
@@ -978,11 +975,30 @@
   function openForm(id) {
     form = formById(id);
     if (!form) { location.hash = '#/'; return; }
-    const draft = store.get(draftKey(id), null);
-    S = draft || blankState(form);
-    if (draft) toast('กรอกต่อจากร่างที่บันทึกไว้');
+    S = store.get(draftKey(id), null) || blankState(form);
     S.rr = S.rr || {}; delete S.rv;   // drafts from before section 3 / from when it had a 3.3 list
     setNav(`${form.id} · ${form.name}`, form.code, true); setFormChrome(true);
+    $('save').textContent = 'บันทึกผล';
+    renderForm();
+    window.scrollTo(0, 0);
+  }
+
+  // Edit a saved result in the same form; saving replaces it in place (same id, so its printout follows)
+  // fresh = start from the saved result; otherwise continue unsaved edits kept under insp.edit.<id>
+  function openEdit(id, fresh) {
+    const rec = store.get(HIST, []).find(r => r.id === id);
+    form = rec && formById(rec.form);
+    if (!form) { location.hash = '#/history'; return; }
+    if (fresh) store.del(editKey(id));
+    S = store.get(editKey(id), null);
+    if (!S) {
+      const v = JSON.parse(JSON.stringify(rec.v || {}));
+      const rr = Object.fromEntries(Object.entries(rec.rr || {}).map(([k, x]) => { const { st, ...rest } = x; return [k, rest]; }));
+      S = { h: { ...blankState(form).h, ...rec.h, models: { ...(rec.h.models || {}) } }, v, t: { ...rec.t }, tn: { ...rec.tn }, rr, autoWhy: '', showAll: false };
+    }
+    S.editId = id;
+    setNav(`แก้ไข ${form.id} · ${rec.h.machine}`, `${rec.h.date} ${rec.h.time || ''}`, true, 'ผลตรวจ'); setFormChrome(true);
+    $('save').textContent = 'บันทึกการแก้ไข';
     renderForm();
     window.scrollTo(0, 0);
   }
@@ -1364,9 +1380,10 @@
   function askReset() {
     confirmSheet({ title: 'ล้างค่าที่กรอกทั้งหมด?', desc: 'เลขเครื่อง ประเภทงาน และทุกค่าในหัวข้อ 1–3 ของฟอร์มนี้จะหายและย้อนกลับไม่ได้ โรงงานกับชื่อผู้ตรวจยังอยู่',
       ok: 'ล้างค่า', back: 'ยกเลิก', danger: true, onOk: () => {
-        const keep = { factory: S.h.factory, inspector: S.h.inspector };
+        const keep = { factory: S.h.factory, inspector: S.h.inspector }, editId = S.editId;
+        store.del(curKey());
         S = blankState(form); Object.assign(S.h, keep);
-        store.del(draftKey(form.id));
+        if (editId) S.editId = editId;
         renderForm(); window.scrollTo(0, 0);
         document.querySelector('[data-h="machine"]')?.focus({ preventScroll: true });
       } });
@@ -1395,6 +1412,17 @@
       savedAt: t.toISOString()
     };
     const all = store.get(HIST, []);
+    if (S.editId) {
+      // An edit keeps the result's id and first save time, and replaces it where it was in the list
+      const i = all.findIndex(x => x.id === S.editId), old = all[i];
+      if (old) { Object.assign(rec, { id: old.id, savedAt: old.savedAt, editedAt: t.toISOString() }); all[i] = rec; } else all.unshift(rec);
+      const ok = store.set(HIST, all);
+      rememberMachine();
+      store.del(editKey(S.editId));
+      location.hash = `#/rec/${rec.id}`;
+      toast(ok ? 'บันทึกการแก้ไขแล้ว' : 'บันทึกในมือถือไม่ได้');
+      return;
+    }
     all.unshift(rec);
     const ok = store.set(HIST, all);
     store.set('insp.last', { factory: h.factory, inspector: h.inspector });
@@ -1444,8 +1472,10 @@
       ${rec.h.comment ? `<section class="group"><h2 class="group-h">Other Comment / Alarm Code</h2><div class="card"><p class="empty" style="color:var(--label)">${esc(rec.h.comment)}</p></div></section>` : ''}
       <section class="group"><div class="acts" style="display:flex;flex-direction:column;gap:8px">
         ${canPrint(rec.form) ? `<button type="button" class="btn-block secondary" id="pdf">พิมพ์ใบตรวจ / บันทึกเป็น PDF</button>` : ''}
+        <button type="button" class="btn-block secondary" id="editRec">แก้ไขผลตรวจ</button>
         <button type="button" class="btn-block reset" id="delRec" style="margin-top:0">ลบผลตรวจนี้</button></div></section>`;
     $('pdf')?.addEventListener('click', () => { location.hash = `#/print/${rec.id}`; });
+    $('editRec').addEventListener('click', () => { freshEdit = true; location.hash = `#/e/${rec.id}`; });
     $('delRec').addEventListener('click', () => askDelete(rec.id));
     window.scrollTo(0, 0);
   }
@@ -1739,11 +1769,14 @@
   // =====================================================================
   // Routing
   // =====================================================================
+  let freshEdit = false;   // set by the result page's edit button: start from the saved result, not leftover edits
   function route() {
     const hash = location.hash || '#/';
-    const svc = hash.startsWith('#/f/') && SVC[decodeURIComponent(hash.slice(4))];
+    const editRec = hash.startsWith('#/e/') && store.get(HIST, []).find(r => r.id === decodeURIComponent(hash.slice(4)));
+    const svc = hash.startsWith('#/f/') ? SVC[decodeURIComponent(hash.slice(4))] : editRec && SVC[editRec.form];
     if (svc) document.body.dataset.svc = svc; else delete document.body.dataset.svc;
     if (hash.startsWith('#/f/')) openForm(decodeURIComponent(hash.slice(4)));
+    else if (hash.startsWith('#/e/')) { openEdit(decodeURIComponent(hash.slice(4)), freshEdit); freshEdit = false; }
     else if (hash === '#/history') showHistory();
     else if (hash.startsWith('#/print/')) showPrint(decodeURIComponent(hash.slice(8)));
     else if (hash.startsWith('#/rec/')) showRecord(decodeURIComponent(hash.slice(6)));
@@ -1791,15 +1824,11 @@
   });
   $('tally').addEventListener('click', (e) => { const b = e.target.closest('[data-jump]'); if (b) jump(b.dataset.jump); });
   $('save').addEventListener('click', () => save(false));
-  // Not finished yet: keep everything typed so far and go back to the list; opening this form again continues it
-  $('saveDraft').addEventListener('click', () => {
-    saveDraft();
-    const m = S.h.machine.trim();
-    location.hash = '#/';
-    toast(`บันทึกร่าง ${form ? form.id : ''}${m ? ' · ' + m : ''} แล้ว · แตะที่เครื่องเดิมเพื่อกรอกต่อ`);
+  // A saved result and its printout step back to the results list, an edit back to its result; everything else goes home
+  $('back').addEventListener('click', () => {
+    const h = location.hash;
+    location.hash = h.startsWith('#/e/') ? `#/rec/${h.slice(4)}` : /^#\/(rec|print)\//.test(h) ? '#/history' : '#/';
   });
-  // A saved result and its printout step back to the results list; everything else goes home
-  $('back').addEventListener('click', () => { location.hash = /^#\/(rec|print)\//.test(location.hash) ? '#/history' : '#/'; });
   window.addEventListener('hashchange', route);
   route();
 
