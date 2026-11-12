@@ -399,7 +399,12 @@
   };
   const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>';   // Tabler "trash"
   const machIcon = (id) => `<span class="mtile" data-svc="${SVC[id] || ''}" aria-hidden="true"><svg viewBox="0 0 24 24">${ICONS[id] || ''}</svg></span>`;
-  const FACTORIES = Array.from({ length: 17 }, (_, i) => `MTL-${i + 1}`);
+  // PM locations, from สถานที่_PM.txt (no MTL-9 / MTL-13)
+  const FACTORIES = ['MTL-1', 'MTL-2', 'MTL-3', 'MTL-4', 'MTL-5', 'MTL-6', 'MTL-7', 'MTL-8', 'MTL-10', 'MTL-11', 'MTL-12', 'MTL-14', 'MTL-15', 'MTL-16', 'MTL-17',
+    'MTL- CACS1,3', 'MTL- CACS2', 'MTL-ZONE-4', 'CACS1', 'CACS2', 'CACS3',
+    'CENTRAL AIR COMPRESSOR BUILDING 1', 'CENTRAL AIR COMPRESSOR BUILDING 3', 'CANTEEN 1', 'CANTEEN 2', 'CHEMICAL STORAGE BUILDING', 'COMPLEX BUILDING',
+    'ELECTRICAL SUB-STATION 1', 'ELECTRICAL SUB-STATION 2', 'PARKING BUILDING', 'RO WATER PLANT FACTORY 12', 'RO WATER PLANT ZONE 2',
+    'WASTE WATER TREATMENT UNIT 1', 'WASTE WATER TREATMENT UNIT 2', 'WASTE WATER TREATMENT UNIT 3', 'WASTE WATER TREATMENT UNIT 4', 'WASTE WATER TREATMENT ZONE 1', 'WORKSHOP'];
   const CHEV = '<svg class="chev" viewBox="0 0 8 14" aria-hidden="true"><path d="m1 1 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // Verdict words and glyphs: status is always shape + word, not color alone
   const VERDICT = { ok: { g: '✓', w: 'ผ่าน' }, watch: { g: '!', w: 'เฝ้าระวัง' }, ng: { g: '✕', w: 'นอกเกณฑ์' } };
@@ -982,7 +987,7 @@
     const hasVib = f.m.some(i => i.judge === 'iso' || i.type === 'vibTemp');
     let html = `<section class="group" data-sec="ข้อมูล"><h2 class="group-h">การตรวจครั้งนี้</h2><div class="card">
       ${inputRow(f.kind === 'daily' ? `${esc(f.name)} No.` : 'หมายเลขเครื่อง', 'class="row-input code" data-h="machine" spellcheck="false" autocapitalize="characters"', h.machine, 'แตะเพื่อกรอก')}
-      <label class="row"><span class="row-label">โรงงาน</span><select class="row-input" data-h="factory"><option value="">เลือก</option>${FACTORIES.map(x => `<option${x === h.factory ? ' selected' : ''}>${x}</option>`).join('')}</select></label>
+      <label class="row"><span class="row-label">โรงงาน</span><select class="row-input" data-h="factory"><option value="">เลือก</option>${(h.factory && !FACTORIES.includes(h.factory) ? [h.factory, ...FACTORIES] : FACTORIES).map(x => `<option${x === h.factory ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
       ${inputRow('วันที่', 'type="date" data-h="date"', h.date)}
       ${inputRow('เวลา', 'type="time" data-h="time"', h.time)}
       ${inputRow('ผู้ตรวจ', 'data-h="inspector" maxlength="40"', h.inspector, 'ชื่อ')}`;
@@ -1476,10 +1481,13 @@
     const L = PL[rec.form], f = formById(rec.form), h = rec.h;
     const W = L.page[0] * 96 / 72, H = L.page[1] * 96 / 72;
     const parts = [];
+    // o.fit = width of the printed blank (page fraction): a value too long for it goes small and wraps inside it
     const put = (x, y, text, o = {}) => {
       if (x == null || y == null || text == null || String(text).trim() === '') return;
-      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.ng ? ' ng' : ''}${o.s ? ' s' : ''}" style="left:${pct(x)};top:${pct(y)}">${esc(text)}</span>`);
+      const long = o.fit && String(text).length * 6.5 > o.fit * W;   // ~6.5 px per character at 10.5 px
+      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.ng ? ' ng' : ''}${o.s || long ? ' s' : ''}" style="left:${pct(x)};top:${pct(y)}${long ? `;width:${pct(o.fit)};white-space:normal;line-height:1.1` : ''}">${esc(text)}</span>`);
     };
+    const field = (p, text) => { if (p) put(p[0], p[1], text, { fit: p[2] }); };
     const ring = (m) => { if (m) parts.push(`<span class="pring" style="left:${pct(m[0])};top:${pct(m[1])};width:${((m[2] + 0.02) * W).toFixed(1)}px"></span>`); };
     const tick = (x, y) => put(x, y, '✓', { c: 1 });
     const hd = L.hdr, ft = L.foot;
@@ -1489,11 +1497,11 @@
     const segs = (u, parts, fr) => { if (!u) return; parts.forEach((p, k) => put(u[0] + u[2] * fr[k], u[1], p, { c: 1 })); };
     const mParts = h.machine.split('-');
     if (hd.machine) { if (mParts.length >= 2 && mParts.length <= 4) segs(hd.machine, mParts, [0.12, 0.38, 0.63, 0.88]); else put(hd.machine[0] + 0.004, hd.machine[1], h.machine); }
-    if (hd.factory) put(...hd.factory, h.factory);
+    field(hd.factory, h.factory);
     if (hd.date) segs(hd.date, h.date.split('-').reverse(), [0.15, 0.48, 0.8]);
     if (hd.time) segs(hd.time, h.time.split(':'), [0.25, 0.78]);
-    if (hd.panel) put(...hd.panel, h.panel);
-    (f.models || []).forEach(m => { const p = hd.models[m.toLowerCase()] || hd.models['']; if (p) put(...p, h.models[m]); });
+    field(hd.panel, h.panel);
+    (f.models || []).forEach(m => field(hd.models[m.toLowerCase()] || hd.models[''], h.models[m]));
     const mark = (k, i = 0) => ring((hd.marks[k] || [])[i]);
     if (f.subtypes && f.subtypes.length > 1) mark(h.subtype);
     mark(h.job);
@@ -1737,7 +1745,7 @@
     goNext(e.target);
   });
   // A reading box moves on by itself once a complete number has sat untouched for a moment
-  // (phone number pads often have no Enter / Next key). Text fields and notes never move on their own.
+  // (the iPhone number pad has no Enter key). Text fields and notes never move on their own.
   const AUTO_NEXT_MS = 1500;
   let autoNext = null;
   $('app').addEventListener('input', (e) => {
