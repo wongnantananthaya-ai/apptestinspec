@@ -8,6 +8,7 @@
   <!-- Installable and usable offline: manifest + sw.js (see the registration at the end of the script) -->
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="ตรวจเช็ค">
   <title>muRata | ตรวจเช็คเครื่องจักร</title>
@@ -1076,7 +1077,7 @@
     }
     const calc = computed(item, vals, h, S.v);
     const calcHtml = calc.length ? `<div class="calc" data-calc="${esc(item.id)}">${calcInner(calc)}</div>` : '';
-    const extra = item.type === 'dosing' ? '<p class="hint">จับเวลา 2 ครั้งต่อปริมาณ · Avg. Dosing = ปริมาณ ÷ เวลาเฉลี่ย × 60 (สูตรในกระดาษยังรอยืนยัน)</p>'
+    const extra = item.type === 'dosing' ? '<p class="hint">จับเวลา 2 ครั้งต่อปริมาณ · Avg. Dosing = ปริมาณ ÷ เวลาเฉลี่ย × 60</p>'
       : item.type === 'vunb' ? '<p class="hint">ใช้แรงดัน RS / ST / RT ของข้อ 1.1 (ค่าหลังทำงาน ถ้าไม่มีใช้ค่าก่อน) · Temp inc = 2 × Vunb² ตามกราฟในฟอร์ม</p>' : '';
     return `<div class="item${needed ? '' : ' off'}" data-item="${esc(item.id)}" data-st="${st}">${head}${figHtml(item)}${body}${calcHtml}${extra}${item.ref ? REF_HTML[item.ref]() : ''}</div>`;
   }
@@ -1471,6 +1472,7 @@
         <p>${esc(rec.formName || rec.form)} · ${esc(rec.h.machine)} · ${esc(rec.h.factory)}</p>
         <p class="num">${esc(rec.h.date)} ${esc(rec.h.time || '')} · ${esc(jobLabel(rec.h))} · ${esc(rec.h.inspector)}</p>
         ${watch ? `<p>เฝ้าระวัง ${watch} รายการ</p>` : ''}
+        ${rec.editedAt ? `<p class="num">แก้ไขล่าสุด ${esc(new Date(rec.editedAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }))}</p>` : ''}
       </div>
       ${findingsHtml(rec) || '<section class="group"><div class="card"><p class="empty">ทุกค่าอยู่ในเกณฑ์ และทำงานครบทุกหัวข้อ</p></div></section>'}
       ${adviceHtml(rec)}
@@ -1731,6 +1733,7 @@
       ok: 'ลบผลตรวจ', back: 'ยกเลิก', danger: true, onOk: () => {
         const y = window.scrollY;
         store.set(HIST, store.get(HIST, []).filter(x => x.id !== id));
+        store.del(editKey(id));   // unsaved edits of a deleted result are dead weight
         if (location.hash.startsWith('#/rec/')) location.hash = '#/history';
         else { showHistory(); window.scrollTo(0, y); }
       } });
