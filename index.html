@@ -203,8 +203,10 @@
     .cells.c4 .box input { font-size: var(--fs-1); text-align: center; }
 
     .calc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .calc span { display: inline-flex; gap: 6px; padding: 6px 10px; border-radius: 8px; background: var(--fill); font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
-    .calc span b { font-weight: 700; }
+    /* Calculated results: tinted in the machine's colour so they stand out from the typed boxes; status colours win */
+    .calc span { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 12px; border-radius: 10px; background: var(--svc-tint, var(--fill)); color: var(--svc, var(--label)); border: 1px solid color-mix(in srgb, var(--svc, var(--label)) 25%, transparent); font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .calc span b { font-weight: 700; font-size: var(--fs-1); }
+    .calc span.ok, .calc span.watch, .calc span.ng { border-color: transparent; }
     .calc span.ok { background: var(--ok-tint); color: var(--ok); }
     .calc span.watch { background: var(--watch-tint); color: var(--watch); }
     .calc span.ng { background: var(--ng-tint); color: var(--ng); }
@@ -1132,7 +1134,8 @@
     }).join('')}</div></div>` : `<div class="it-row">${segHtml(`r_${id}`, [['ok', '✓ ปกติ', 'ok'], ['ng', '✕ ผิดปกติ', 'ng']], inp.r, 'verdict')}</div>`;
     return `<div class="item rr${needed ? '' : ' off'}" data-rr-item="${id}" data-st="${e.st}">
       <div class="it-head"><span class="it-no">${id}</span><div class="it-text"><div class="it-title">${esc(row.l)}</div>
-        <div class="it-spec">${[`เกณฑ์ <b>${esc(row.lim)}</b>`, esc(row.why), `แนะนำรอบ ${esc(row.per)}`, needed ? '' : 'ไม่อยู่ในรอบนี้'].filter(Boolean).join(' · ')}</div></div>
+        <div class="spec"><span>เกณฑ์</span><b>${esc(row.lim)}</b></div>
+        <div class="it-spec">${[esc(row.why), `แนะนำรอบ ${esc(row.per)}`, needed ? '' : 'ไม่อยู่ในรอบนี้'].filter(Boolean).join(' · ')}</div></div>
         <span class="pill ${e.st}" data-rrpill>${pillHtml(e.st)}</span></div>
       ${cells}
       <textarea class="note" data-rr="${id}" data-k="n" maxlength="300" placeholder="หมายเหตุ / Action (ไม่บังคับ)" aria-label="หมายเหตุข้อ ${id}">${esc(inp.n || '')}</textarea>
