@@ -32,7 +32,7 @@
       --ok: #1A7F37;   --ok-tint: #E7F5EA;      /* 5.1:1 / 4.5:1 */
       --watch: #8A5300; --watch-tint: #FFF3DC;  /* 6.3:1 / 5.9:1 */
       --ng: #C21F1F;   --ng-tint: #FDECEC;      /* 6.0:1 / 5.2:1 */
-      --bar: rgba(255, 255, 255, 0.88);
+      --bar: rgba(255, 255, 255, 0.94);   /* frosted but nearly solid, so bar text stays crisp */
       --shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
       --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "Leelawadee UI", "Noto Sans Thai", "Sukhumvit Set", system-ui, sans-serif;
       --r: 12px;
@@ -79,9 +79,9 @@
     .nav-in { max-width: 680px; margin: 0 auto; height: 52px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 8px; }
     .nav-back { justify-self: start; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 8px; color: var(--accent); font-size: var(--fs-1); }
     .nav-back svg { width: 12px; height: 20px; }
-    .nav-title { font-weight: 600; font-size: var(--fs-1); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52vw; }
+    .nav-title { grid-column: 2; font-weight: 700; font-size: var(--fs-1); letter-spacing: 0.01em; color: var(--label); -webkit-font-smoothing: subpixel-antialiased; text-rendering: optimizeLegibility; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52vw; }
     .nav-title small { display: block; font-weight: 400; font-size: var(--fs-2); color: var(--label-2); }
-    .nav-prog { justify-self: end; padding-right: 8px; font-size: var(--fs-2); color: var(--label-2); }
+    .nav-prog { grid-column: 3; justify-self: end; padding-right: 8px; font-size: var(--fs-2); color: var(--label-2); }
     /* Section bar: jump between the parts of a long form; the part on screen is lit */
     .jumpbar { max-width: 680px; margin: 0 auto; display: flex; gap: 6px; padding: 0 12px 8px; overflow-x: auto; scroll-padding-inline: 12px; scrollbar-width: none; }
     .jumpbar::-webkit-scrollbar { display: none; }
@@ -97,7 +97,6 @@
     .large { padding: 12px 4px 4px; }
     .large h1 { font-size: var(--fs-h); font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
     .large p { margin-top: 4px; color: var(--label-2); font-size: var(--fs-2); }
-    .brand { display: block; height: 30px; width: auto; margin: 20px 4px 0; border-radius: 4px; }
 
     /* ---------- Grouped sections ---------- */
     .group { margin-top: 28px; scroll-margin-top: var(--head); }
@@ -937,7 +936,7 @@
   // =====================================================================
   function showHome() {
     form = null; S = null;
-    setNav('', '', false); setFormChrome(false);
+    setNav('Inspection', '', false); setFormChrome(false);   // home title sits in the frosted bar, iOS-style
     const row = (f) => {
       const draft = store.get(draftKey(f.id), null);
       return `<button type="button" class="row nrow" data-form="${f.id}">
@@ -948,8 +947,6 @@
     };
     const count = store.get(HIST, []).length;
     $('app').innerHTML = `
-      <img class="brand" src="murata_logo.png" alt="muRata" onerror="this.remove()">
-      <div class="large"><h1>ตรวจเช็คเครื่องจักร</h1><p>เลือกเครื่องที่อยู่ตรงหน้า แล้วกรอกได้เลย ระบบเก็บร่างไว้ให้ตลอด</p></div>
       <section class="group"><h2 class="group-h">PM · งานซ่อม · Inspection</h2>
         <div class="card">${FORMS.filter(f => f.kind === 'pm').map(row).join('')}</div></section>
       <section class="group"><h2 class="group-h">ตรวจรายวัน</h2>
