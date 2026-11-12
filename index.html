@@ -325,6 +325,7 @@
     .pbg { position: absolute; inset: 0; width: 100%; height: 100%; }
     .pv { position: absolute; font-size: 10.5px; font-weight: 600; line-height: 1; white-space: nowrap; color: #1D3FAF; transform: translate(0, -96%); }
     .pv.c { transform: translate(-50%, -96%); }
+    .pv.mid { transform: translate(-50%, -50%); font-size: 13px; }   /* y is the box centre, not a text baseline */
     .pv.ng { color: #C81E1E; }
     .pv.s { font-size: 8.5px; letter-spacing: -0.02em; }
     .pring { position: absolute; height: 15px; border: 1.4px solid #1D3FAF; border-radius: 50%; transform: translate(-50%, -78%); }
@@ -1529,7 +1530,7 @@
     const put = (x, y, text, o = {}) => {
       if (x == null || y == null || text == null || String(text).trim() === '') return;
       const long = o.fit && String(text).length * 6.5 > o.fit * W;   // ~6.5 px per character at 10.5 px
-      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.ng ? ' ng' : ''}${o.s || long ? ' s' : ''}" style="left:${pct(x)};top:${pct(y)}${long ? `;width:${pct(o.fit)};white-space:normal;line-height:1.1` : ''}${o.fs ? `;font-size:${o.fs.toFixed(1)}px` : ''}">${esc(text)}</span>`);
+      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.box ? ' mid' : ''}${o.ng ? ' ng' : ''}${o.s || long ? ' s' : ''}" style="left:${pct(x)};top:${pct(y)}${long ? `;width:${pct(o.fit)};white-space:normal;line-height:1.1` : ''}${o.fs ? `;font-size:${o.fs.toFixed(1)}px` : ''}">${esc(text)}</span>`);
     };
     const field = (p, text) => { if (p) put(p[0], p[1], text, { fit: p[2] }); };
     const ring = (m) => { if (m) parts.push(`<span class="pring" style="left:${pct(m[0])};top:${pct(m[1])};width:${((m[2] + 0.02) * W).toFixed(1)}px"></span>`); };
@@ -1547,7 +1548,11 @@
     field(hd.panel, h.panel);
     (f.models || []).forEach(m => field(hd.models[m.toLowerCase()] || hd.models[''], h.models[m]));
     const mark = (k, i = 0) => ring((hd.marks[k] || [])[i]);
-    if (f.subtypes && f.subtypes.length > 1) mark(h.subtype);
+    // Machine type: a tick in the box beside its label (boxes found by tools/find_boxes.js); a ring if no box was found
+    if (f.subtypes && f.subtypes.length > 1) {
+      const bx = ((hd.boxes || {})[h.subtype] || [])[0];
+      if (bx) put(bx[0], bx[1], '✓', { c: 1, box: 1 }); else mark(h.subtype);
+    }
     mark(h.job);
     if (h.job === 'pm') mark(h.period);
     if (f.pumpState) { mark(h.pumpState, 0); mark(h.valveState, 1); }
