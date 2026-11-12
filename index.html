@@ -80,6 +80,8 @@
     .nav-back { justify-self: start; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 8px; color: var(--accent); font-size: var(--fs-1); }
     .nav-back svg { width: 12px; height: 20px; }
     .nav-title { grid-column: 2; font-weight: 700; font-size: var(--fs-1); letter-spacing: 0.01em; color: var(--label); -webkit-font-smoothing: subpixel-antialiased; text-rendering: optimizeLegibility; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52vw; }
+    .nav.home .nav-in { height: 56px; }
+    .nav.home .nav-title { font-size: 21px; letter-spacing: -0.01em; }   /* home only: the app name reads a size up */
     .nav-title small { display: block; font-weight: 400; font-size: var(--fs-2); color: var(--label-2); }
     .nav-prog { grid-column: 3; justify-self: end; padding-right: 8px; font-size: var(--fs-2); color: var(--label-2); }
     /* Section bar: jump between the parts of a long form; the part on screen is lit */
@@ -906,6 +908,7 @@
     $('back').querySelector('span').textContent = backLabel;
     $('navProg').textContent = '';
     document.querySelector('.nav').classList.toggle('bare', !title && !back);
+    document.querySelector('.nav').classList.remove('home');
   }
   function setFormChrome(on) { $('prog').hidden = !on; $('toolbar').hidden = !on; $('jumpbar').hidden = !on; }
 
@@ -948,6 +951,7 @@
   function showHome() {
     form = null; S = null;
     setNav('Inspection', '', false); setFormChrome(false);   // home title sits in the frosted bar, iOS-style
+    document.querySelector('.nav').classList.add('home');
     const row = (f) => {
       const draft = store.get(draftKey(f.id), null);
       return `<button type="button" class="row nrow" data-form="${f.id}">
