@@ -1811,19 +1811,6 @@
     e.preventDefault();
     goNext(e.target);
   });
-  // A reading box moves on by itself once a complete number has sat untouched for a moment
-  // (the iPhone number pad has no Enter key). Text fields and notes never move on their own.
-  const AUTO_NEXT_MS = 1500;
-  let autoNext = null;
-  $('app').addEventListener('input', (e) => {
-    const el = e.target;
-    clearTimeout(autoNext);
-    if (el.tagName !== 'INPUT' || !(el.dataset.it || el.dataset.rr) || !el.closest('.box')) return;
-    const v = el.value.trim();
-    if (!/^-?\d+([.,]\d+)?$/.test(v)) return;
-    autoNext = setTimeout(() => { if (document.activeElement === el && el.value.trim() === v) goNext(el); }, AUTO_NEXT_MS);
-  });
-  $('app').addEventListener('focusout', () => clearTimeout(autoNext));
   $('app').addEventListener('change', onInput);
   $('app').addEventListener('click', (e) => {
     if (e.target.id === 'toggleAll') { S.showAll = !S.showAll; saveDraft(); renderForm(); }
