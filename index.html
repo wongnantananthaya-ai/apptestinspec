@@ -45,15 +45,15 @@
     }
     /* Service colors, like painted pipe codes in the plant: each machine family keeps one hue.
        Ink is >= 4.8:1 on white (and carries white text on buttons); tint is the soft fill. Status colors stay separate. */
-    /* --svc-icon is the brighter hue for the machine icon and its frame (graphics only, never text) */
-    [data-svc="air"]   { --svc: #1D6FA5; --svc-tint: #E1EFF9; --svc-icon: #007AFF; }
-    [data-svc="cool"]  { --svc: #4257B2; --svc-tint: #E7EAFA; --svc-icon: #5856D6; }
-    [data-svc="tower"] { --svc: #0E7489; --svc-tint: #DCF1F5; --svc-icon: #30B0C7; }
-    [data-svc="blow"]  { --svc: #0F7A74; --svc-tint: #DCF2EE; --svc-icon: #00A3A3; }
-    [data-svc="chem"]  { --svc: #7A4BB0; --svc-tint: #EFE7F9; --svc-icon: #AF52DE; }
-    [data-svc="heat"]  { --svc: #B4541A; --svc-tint: #FBE9DD; --svc-icon: #FF9500; }
-    [data-svc="vac"]   { --svc: #4A5A70; --svc-tint: #E5EAF0; --svc-icon: #8E8E93; }
-    [data-svc="water"] { --svc: #4F7019; --svc-tint: #ECF3DC; --svc-icon: #34C759; }
+    /* --svc-icon / --svc-icon-bg: the machine icon's glyph and its soft tile (same hue at ~12%); graphics only, never text */
+    [data-svc="air"]   { --svc: #1D6FA5; --svc-tint: #E1EFF9; --svc-icon: #007AFF; --svc-icon-bg: rgba(0, 122, 255, 0.12); }
+    [data-svc="cool"]  { --svc: #4257B2; --svc-tint: #E7EAFA; --svc-icon: #5856D6; --svc-icon-bg: rgba(88, 86, 214, 0.12); }
+    [data-svc="tower"] { --svc: #0E7489; --svc-tint: #DCF1F5; --svc-icon: #1E8FA3; --svc-icon-bg: rgba(30, 143, 163, 0.12); }
+    [data-svc="blow"]  { --svc: #0F7A74; --svc-tint: #DCF2EE; --svc-icon: #008585; --svc-icon-bg: rgba(0, 133, 133, 0.12); }
+    [data-svc="chem"]  { --svc: #7A4BB0; --svc-tint: #EFE7F9; --svc-icon: #AF52DE; --svc-icon-bg: rgba(175, 82, 222, 0.12); }
+    [data-svc="heat"]  { --svc: #B4541A; --svc-tint: #FBE9DD; --svc-icon: #C96F00; --svc-icon-bg: rgba(201, 111, 0, 0.12); }
+    [data-svc="vac"]   { --svc: #4A5A70; --svc-tint: #E5EAF0; --svc-icon: #6E6E73; --svc-icon-bg: rgba(110, 110, 115, 0.12); }
+    [data-svc="water"] { --svc: #4F7019; --svc-tint: #ECF3DC; --svc-icon: #1F9D45; --svc-icon-bg: rgba(31, 157, 69, 0.12); }
     body[data-svc] { --accent: var(--svc); }
     @media (prefers-contrast: more) {
       :root { --label-2: #3A3A3C; --sep: rgba(60, 60, 67, 0.45); }
@@ -123,7 +123,7 @@
     .row.is-invalid::after, .stack.is-invalid::after { content: 'จำเป็น'; flex-shrink: 0; font-size: var(--fs-2); font-weight: 600; color: var(--ng); }
 
     /* Navigation rows (home, history) */
-    .mtile { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--card); border: 1.5px solid var(--svc-icon, var(--sep)); color: var(--svc-icon, var(--accent)); }
+    .mtile { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--svc-icon-bg, var(--fill)); color: var(--svc-icon, var(--accent)); }
     .mtile svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
     /* Saved-result row: the result opens the printout, the bin on the right deletes */
     .hrow { position: relative; display: flex; align-items: stretch; }
@@ -947,7 +947,7 @@
     };
     const count = store.get(HIST, []).length;
     $('app').innerHTML = `
-      <section class="group"><h2 class="group-h">PM · งานซ่อม · Inspection</h2>
+      <section class="group">
         <div class="card">${FORMS.filter(f => f.kind === 'pm').map(row).join('')}</div></section>
       <section class="group"><h2 class="group-h">ตรวจรายวัน</h2>
         <div class="card">${FORMS.filter(f => f.kind === 'daily').map(row).join('')}</div></section>
