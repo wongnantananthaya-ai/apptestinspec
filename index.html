@@ -55,8 +55,8 @@
     [data-svc="heat"]  { --svc: #B4541A; --svc-tint: #FBE9DD; --svc-icon: #C96F00; --svc-icon-bg: rgba(201, 111, 0, 0.12); }
     [data-svc="vac"]   { --svc: #4A5A70; --svc-tint: #E5EAF0; --svc-icon: #6E6E73; --svc-icon-bg: rgba(110, 110, 115, 0.12); }
     [data-svc="water"] { --svc: #4F7019; --svc-tint: #ECF3DC; --svc-icon: #1F9D45; --svc-icon-bg: rgba(31, 157, 69, 0.12); }
-    /* Inside a form one blue serves every machine (numbers, spec, buttons); service colours stay on the machine icons */
-    body[data-svc] { --svc: #1D6FA5; --svc-tint: #EAF2FA; --accent: #1D6FA5; }
+    /* Inside a form one plain slate grey serves every machine (numbers, spec, buttons); service colours stay on the machine icons */
+    body[data-svc] { --svc: #2B3A4A; --svc-tint: #EEF1F4; --accent: #2B3A4A; }
     @media (prefers-contrast: more) {
       :root { --label-2: #3A3A3C; --sep: rgba(60, 60, 67, 0.45); }
     }
@@ -250,6 +250,8 @@
     .task { padding: 16px; scroll-margin-top: var(--head); scroll-margin-bottom: 110px; }
     .task + .task { border-top: 0.5px solid var(--sep); }
     .task.off { opacity: 0.5; }
+    .task.missing .it-title { color: var(--ng); }
+    .task.missing .it-title::after { content: ' · ยังไม่ได้เลือก'; font-weight: 500; font-size: var(--fs-2); }
     .task .seg { margin-top: 10px; }
     .task .seg span { gap: 5px; }
     .task .seg input:checked + span.done { background: var(--ok-tint); color: var(--ok); box-shadow: none; }
@@ -1186,7 +1188,7 @@
         <div class="card">${items.length ? items.map(i => itemHtml(i, need(i))).join('') : '<p class="empty">รอบนี้ไม่มีข้อที่ต้องวัด</p>'}</div></section>`;
       if (form.t) {
         const ts = form.t.filter(t => S.showAll || need(t));
-        html += `<section class="group" data-sec="2 งาน"><h2 class="group-h"><span>2 · หัวข้อตรวจเช็ค / ทำงาน</span><span class="num">${form.t.filter(need).length} ข้อ · ไม่บังคับ</span></h2>
+        html += `<section class="group" data-sec="2 งาน"><h2 class="group-h"><span>2 · หัวข้อตรวจเช็ค / ทำงาน</span><span class="num">${form.t.filter(need).length} ข้อ</span></h2>
           <div class="card">${ts.length ? ts.map(t => taskHtml(t, need(t))).join('') : '<p class="empty">รอบนี้ไม่มีหัวข้องาน</p>'}</div></section>`;
       }
       const hidden = form.m.filter(i => !need(i)).length + (form.t ? form.t.filter(t => !need(t)).length : 0);
@@ -1206,8 +1208,8 @@
   function tally() {
     const h = S.h;
     let filled = 0, total = 0;
-    const ng = [], watch = [], notDone = [];
-    if (!jobChosen(form, h)) return { filled, total, ng, watch, notDone };
+    const ng = [], watch = [], notDone = [], missingTasks = [];
+    if (!jobChosen(form, h)) return { filled, total, ng, watch, notDone, missingTasks };
     form.m.filter(i => isNeeded(form, i, h)).forEach(item => {
       const vals = S.v[item.id] || {};
       computed(item, vals, h, S.v).forEach(c => {
@@ -1229,9 +1231,13 @@
         if (st === 'watch') watch.push({ item, l: c.l, v: vals[c.k], u: c.u });
       });
     });
-    // Section 2 is optional: an unpicked task is neither counted as empty nor blocks the save
-    (form.t || []).filter(t => isNeeded(form, t, h)).forEach(t => { if (S.t[t.id] === 'notdone') notDone.push(t); });
-    return { filled, total, ng, watch, notDone };   // section 3 is advice: never counted here
+    // Section 2 is required: every task of the round needs เสร็จ / ไม่เสร็จ / ไม่ได้ทำ picked before saving
+    (form.t || []).filter(t => isNeeded(form, t, h)).forEach(t => {
+      total++;
+      if (S.t[t.id]) filled++; else missingTasks.push(t);
+      if (S.t[t.id] === 'notdone') notDone.push(t);
+    });
+    return { filled, total, ng, watch, notDone, missingTasks };   // section 3 is advice: never counted here
   }
   function updateTally() {
     const r = tally();
@@ -1250,7 +1256,8 @@
     if (kind === 'watch') el = document.querySelector('.item[data-st="watch"]');
     if (kind === 'empty') {
       const inp = [...document.querySelectorAll('.item:not(.off) input[data-it]')].find(i => !i.value.trim() && i.dataset.k !== 'rla');
-      el = inp ? inp.closest('.item') : document.querySelector('.item:not(.off) .seg:not(:has(input:checked))')?.closest('.item');
+      el = inp ? inp.closest('.item') : (document.querySelector('.item:not(.off) .seg:not(:has(input:checked))')?.closest('.item')
+        || [...document.querySelectorAll('.task:not(.off)')].find(t => !t.querySelector('input:checked')));
       if (inp) { scrollToEl(el); setTimeout(() => inp.focus({ preventScroll: true }), reduceMotion() ? 0 : 350); return; }
     }
     scrollToEl(el);
@@ -1311,6 +1318,7 @@
         const id = el.name.slice(2);
         S.t[id] = el.value;
         const box = document.querySelector(`[data-task="${CSS.escape(id)}"]`);
+        box.classList.remove('missing');
         const note = box.querySelector('textarea');
         note.hidden = el.value !== 'notdone';
         if (el.value === 'notdone' && !note.value) note.focus();
@@ -1336,6 +1344,10 @@
     if (form.kind === 'pm' && !h.job) bad('[data-need="job"]', 'ประเภทงาน');
     else if (form.kind === 'pm' && h.job === 'pm' && !h.period) bad('[data-need="period"]', 'รอบ PM');
     const r = tally();
+    if (r.missingTasks.length) {
+      errs.push(`ผลของหัวข้องาน ${r.missingTasks.length} ข้อ`);
+      r.missingTasks.forEach(t => { const b = document.querySelector(`[data-task="${CSS.escape(t.id)}"]`); if (b) b.classList.add('missing'); });
+    }
     const noReason = r.notDone.filter(t => !String(S.tn[t.id] || '').trim());
     if (noReason.length) {
       errs.push(`เหตุผลของข้อที่ไม่เสร็จ (${noReason.map(t => t.id).join(', ')})`);
@@ -1345,7 +1357,7 @@
     if (errs.length) {
       errBox.hidden = false;
       errBox.innerHTML = `<b>ยังบันทึกไม่ได้</b>ยังขาด: ${errs.map(esc).join(' · ')}`;
-      scrollToEl(document.querySelector('.is-invalid') || errBox);
+      scrollToEl(document.querySelector('.is-invalid, .task.missing') || errBox);
       return;
     }
     errBox.hidden = true;
