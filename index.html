@@ -203,9 +203,10 @@
     .cells.c4 .box input { font-size: var(--fs-1); text-align: center; }
 
     .calc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    /* Calculated results: solid dark slate, unlike the tinted spec box and the grey typed boxes; status colours win */
-    .calc span { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 12px; border-radius: 10px; background: #2E3A4B; color: #D5DCE6; font-size: var(--fs-2); font-weight: 500; font-variant-numeric: tabular-nums; }
-    .calc span b { font-weight: 700; font-size: var(--fs-1); color: #FFFFFF; }
+    /* Calculated results: one light blue for every machine, apart from the spec box and the grey typed boxes; status colours win */
+    .calc span { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 12px; border-radius: 10px; background: #E4EEFF; color: #3B5A8C; border: 1px solid #B7CCF2; font-size: var(--fs-2); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .calc span b { font-weight: 700; font-size: var(--fs-1); color: #16366B; }
+    .calc span.ok, .calc span.watch, .calc span.ng { border-color: transparent; }
     .calc span.ok b, .calc span.watch b, .calc span.ng b { color: inherit; }
     .calc span.ok { background: var(--ok-tint); color: var(--ok); }
     .calc span.watch { background: var(--watch-tint); color: var(--watch); }
