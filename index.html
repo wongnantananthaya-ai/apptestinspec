@@ -55,7 +55,8 @@
     [data-svc="heat"]  { --svc: #B4541A; --svc-tint: #FBE9DD; --svc-icon: #C96F00; --svc-icon-bg: rgba(201, 111, 0, 0.12); }
     [data-svc="vac"]   { --svc: #4A5A70; --svc-tint: #E5EAF0; --svc-icon: #6E6E73; --svc-icon-bg: rgba(110, 110, 115, 0.12); }
     [data-svc="water"] { --svc: #4F7019; --svc-tint: #ECF3DC; --svc-icon: #1F9D45; --svc-icon-bg: rgba(31, 157, 69, 0.12); }
-    body[data-svc] { --accent: var(--svc); }
+    /* Inside a form one blue serves every machine (numbers, spec, buttons); service colours stay on the machine icons */
+    body[data-svc] { --svc: #1D6FA5; --svc-tint: #EAF2FA; --accent: #1D6FA5; }
     @media (prefers-contrast: more) {
       :root { --label-2: #3A3A3C; --sep: rgba(60, 60, 67, 0.45); }
     }
@@ -188,13 +189,13 @@
     .cell-top { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 22px; font-size: var(--fs-2); font-weight: 500; color: var(--label-2); }
     .cell-top span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mark { flex-shrink: 0; font-style: normal; font-weight: 700; font-size: var(--fs-2); }
-    .box { position: relative; display: flex; align-items: baseline; height: 50px; padding: 0 10px; border-radius: 10px; background: var(--fill); border: 1.5px solid transparent; }
+    .box { position: relative; display: flex; align-items: baseline; height: 50px; padding: 0 10px; border-radius: 10px; background: var(--card); border: 1.5px solid #D5DCE4; }
     .box input { flex: 1; min-width: 0; width: 100%; height: 100%; border: none; background: transparent; font-size: var(--fs-1); font-weight: 600; font-variant-numeric: tabular-nums; }
     .box input:focus { outline: none; }
     .box em { flex-shrink: 0; align-self: center; padding-left: 4px; font-style: normal; font-size: var(--fs-2); color: var(--label-2); }
     .box:focus-within { border-color: var(--accent); background: var(--card); }
-    .cell[data-st="ok"] .box { background: var(--ok-tint); border-color: var(--ok); }
-    .cell[data-st="ok"] .box input, .cell[data-st="ok"] .mark { color: var(--ok); }
+    /* A passing value stays a plain white box (only its ✓ is green); colour is kept for what needs a second look */
+    .cell[data-st="ok"] .mark { color: var(--ok); }
     .cell[data-st="watch"] .box { background: var(--watch-tint); border-color: var(--watch); }
     .cell[data-st="watch"] .box input, .cell[data-st="watch"] .mark { color: var(--watch); }
     .cell[data-st="ng"] .box { background: var(--ng-tint); border-color: var(--ng); }
