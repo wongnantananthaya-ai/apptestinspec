@@ -1,0 +1,1876 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#EDF2F5">
+  <!-- Installable and usable offline: manifest + sw.js (see the registration at the end of the script) -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ตรวจเช็ค">
+  <title>muRata | ตรวจเช็คเครื่องจักร</title>
+  <style>
+    /* Field inspection, phone first. Grouped-list layout in the iOS idiom on a white page (light theme only)
+       and follows the phone text size. Forms are data (FORMS below), built from the paper sheets in this folder;
+       see INSPECTION_FORMS_SPEC_TH.md. Saves on this phone (localStorage) and exports CSV. */
+
+    /* ---------- Tokens ---------- */
+    :root {
+      --bg: #EDF2F5;            /* cool mist page: less glare than white; cards stay white */
+      --card: #FFFFFF;
+      --card-line: #DCE4EA;
+      --fill: rgba(40, 80, 110, 0.08);
+      --fill-strong: rgba(40, 80, 110, 0.16);
+      --sep: rgba(40, 70, 95, 0.16);
+      --label: #1E2933;
+      --label-2: #56636D;       /* 6.0:1 on card, 5.3:1 on bg */
+      --accent: #0E7490;        /* interactive + selection only. 5.4:1 on white */
+      --on-accent: #FFFFFF;
+      --seg-on: #FFFFFF;
+      --ok: #1A7F37;   --ok-tint: #E7F5EA;      /* 5.1:1 / 4.5:1 */
+      --watch: #8A5300; --watch-tint: #FFF3DC;  /* 6.3:1 / 5.9:1 */
+      --ng: #C21F1F;   --ng-tint: #FDECEC;      /* 6.0:1 / 5.2:1 */
+      --bar: rgba(255, 255, 255, 0.94);   /* frosted but nearly solid, so bar text stays crisp */
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "Leelawadee UI", "Noto Sans Thai", "Sukhumvit Set", system-ui, sans-serif;
+      --r: 12px;
+      /* Three text sizes only: page title, body (everything you read or type), secondary (labels, units, notes) */
+      --fs-h: 1.647rem;
+      --fs-1: 1rem;
+      --fs-2: 0.882rem;
+      --tap: 44px;              /* smallest thing a gloved thumb has to hit */
+      --head: 108px;            /* sticky nav + section bar: where scrolled-to items should land below */
+    }
+    /* Service colors, like painted pipe codes in the plant: each machine family keeps one hue.
+       Ink is >= 4.8:1 on white (and carries white text on buttons); tint is the soft fill. Status colors stay separate. */
+    /* --svc-icon / --svc-icon-bg: the machine icon's glyph and its soft tile (same hue at ~12%); graphics only, never text */
+    [data-svc="air"]   { --svc: #1D6FA5; --svc-tint: #E1EFF9; --svc-icon: #007AFF; --svc-icon-bg: rgba(0, 122, 255, 0.12); }
+    [data-svc="cool"]  { --svc: #4257B2; --svc-tint: #E7EAFA; --svc-icon: #5856D6; --svc-icon-bg: rgba(88, 86, 214, 0.12); }
+    [data-svc="tower"] { --svc: #0E7489; --svc-tint: #DCF1F5; --svc-icon: #1E8FA3; --svc-icon-bg: rgba(30, 143, 163, 0.12); }
+    [data-svc="blow"]  { --svc: #0F7A74; --svc-tint: #DCF2EE; --svc-icon: #008585; --svc-icon-bg: rgba(0, 133, 133, 0.12); }
+    [data-svc="chem"]  { --svc: #7A4BB0; --svc-tint: #EFE7F9; --svc-icon: #AF52DE; --svc-icon-bg: rgba(175, 82, 222, 0.12); }
+    [data-svc="heat"]  { --svc: #B4541A; --svc-tint: #FBE9DD; --svc-icon: #C96F00; --svc-icon-bg: rgba(201, 111, 0, 0.12); }
+    [data-svc="vac"]   { --svc: #4A5A70; --svc-tint: #E5EAF0; --svc-icon: #6E6E73; --svc-icon-bg: rgba(110, 110, 115, 0.12); }
+    [data-svc="water"] { --svc: #4F7019; --svc-tint: #ECF3DC; --svc-icon: #1F9D45; --svc-icon-bg: rgba(31, 157, 69, 0.12); }
+    body[data-svc] { --accent: var(--svc); }
+    @media (prefers-contrast: more) {
+      :root { --label-2: #3A3A3C; --sep: rgba(60, 60, 67, 0.45); }
+    }
+
+    /* Text follows the phone's text-size setting where the browser supports it (Safari: Dynamic Type) */
+    html { font-size: 17px; -webkit-text-size-adjust: 100%; }
+    @supports (font: -apple-system-body) { html { font: -apple-system-body; } }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; font-family: var(--font); font-size: var(--fs-1); line-height: 1.5; color: var(--label); background: var(--bg); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; background: none; border: none; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+    .num { font-variant-numeric: tabular-nums; }
+
+    /* ---------- Navigation bar (functional layer, translucent) ---------- */
+    .nav { position: sticky; top: 0; z-index: 20; padding-top: env(safe-area-inset-top); background: var(--bar); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border-bottom: 0.5px solid var(--sep); }
+    @media (prefers-reduced-transparency: reduce) { .nav, .toolbar { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+    .nav.bare { border-bottom: none; background: var(--bg); }
+    .nav.bare .nav-in { display: none; }
+    .nav-in { max-width: 680px; margin: 0 auto; height: 52px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 8px; }
+    .nav-back { justify-self: start; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 8px; color: var(--accent); font-size: var(--fs-1); }
+    .nav-back svg { width: 12px; height: 20px; }
+    .nav-title { grid-column: 2; font-weight: 700; font-size: var(--fs-1); letter-spacing: 0.01em; color: var(--label); -webkit-font-smoothing: subpixel-antialiased; text-rendering: optimizeLegibility; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52vw; }
+    .nav.home .nav-in { height: 56px; }
+    .nav.home .nav-title { font-size: 21px; letter-spacing: -0.01em; }   /* home only: the app name reads a size up */
+    .nav-title small { display: block; font-weight: 400; font-size: var(--fs-2); color: var(--label-2); }
+    .nav-prog { grid-column: 3; justify-self: end; padding-right: 8px; font-size: var(--fs-2); color: var(--label-2); }
+    /* Section bar: jump between the parts of a long form; the part on screen is lit */
+    .jumpbar { max-width: 680px; margin: 0 auto; display: flex; gap: 6px; padding: 0 12px 8px; overflow-x: auto; scroll-padding-inline: 12px; scrollbar-width: none; }
+    .jumpbar::-webkit-scrollbar { display: none; }
+    .jumpbar button { flex-shrink: 0; min-height: 40px; padding: 0 14px; border-radius: 20px; background: var(--fill); color: var(--label-2); font-size: var(--fs-2); font-weight: 600; white-space: nowrap; }
+    .jumpbar button.on { background: var(--svc-tint, var(--fill-strong)); color: var(--accent); }
+    .progress { height: 3px; background: transparent; }
+    .progress i { display: block; height: 100%; width: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left center; transition: transform .25s; }
+    @media (prefers-reduced-motion: reduce) { .progress i { transition: none; } }
+
+    .wrap { max-width: 680px; margin: 0 auto; padding: 0 16px calc(112px + env(safe-area-inset-bottom)); }
+
+    /* ---------- Large title ---------- */
+    .large { padding: 12px 4px 4px; }
+    .large h1 { font-size: var(--fs-h); font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
+    .large p { margin-top: 4px; color: var(--label-2); font-size: var(--fs-2); }
+
+    /* ---------- Grouped sections ---------- */
+    .group { margin-top: 28px; scroll-margin-top: var(--head); }
+    .group-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 0 4px 8px; font-size: var(--fs-1); font-weight: 700; color: var(--label); }
+    .group-h .num { font-size: var(--fs-2); font-weight: 500; color: var(--label-2); }
+    .group-f { padding: 7px 16px 0; font-size: var(--fs-2); color: var(--label-2); }
+    .card { background: var(--card); border-radius: var(--r); overflow: hidden; border: 1px solid var(--card-line); box-shadow: 0 1px 2px rgba(30, 60, 90, 0.05); }
+    .card + .card { margin-top: 12px; }
+
+    /* Rows with an inset hairline separator */
+    .row { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 10px 16px; text-align: left; }
+    .row + .row::before, .row + .stack::before, .stack + .row::before, .stack + .stack::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; border-top: 0.5px solid var(--sep); }
+    .stack { position: relative; padding: 12px 16px; }
+    .row-label { flex-shrink: 0; min-width: 7.5em; font-size: var(--fs-1); }
+    .row-input { flex: 1; min-width: 0; height: 32px; border: none; background: transparent; text-align: right; font-size: var(--fs-1); color: var(--label); }
+    .row-input::placeholder { color: var(--label-2); opacity: 0.7; }
+    .row-input:focus { outline: none; }
+    .row:focus-within { background: var(--fill); }
+    select.row-input { -webkit-appearance: none; appearance: none; text-align-last: right; padding-right: 18px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='16' viewBox='0 0 10 16'><path d='M1 6l4-4 4 4M1 10l4 4 4-4' fill='none' stroke='%238E8E93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>") right center no-repeat; }
+    .code { text-transform: uppercase; letter-spacing: 0.02em; }
+    .stack-label { display: block; margin-bottom: 8px; font-size: var(--fs-1); }
+    .stack-label em { font-style: normal; color: var(--label-2); font-size: var(--fs-2); }
+    .row.is-invalid .row-label, .stack.is-invalid .stack-label { color: var(--ng); }
+    .row.is-invalid::after, .stack.is-invalid::after { content: 'จำเป็น'; flex-shrink: 0; font-size: var(--fs-2); font-weight: 600; color: var(--ng); }
+
+    /* Navigation rows (home, history) */
+    .mtile { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--svc-icon-bg, var(--fill)); color: var(--svc-icon, var(--accent)); }
+    .mtile svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    /* Saved-result row: the result opens the printout, the bin on the right deletes */
+    .hrow { position: relative; display: flex; align-items: stretch; }
+    .hrow + .hrow::before { content: ''; position: absolute; top: 0; left: 68px; right: 0; border-top: 0.5px solid var(--sep); }
+    .hrow .row { flex: 1; min-width: 0; padding-right: 4px; }
+    .del { flex-shrink: 0; width: 48px; display: grid; place-items: center; color: var(--label-2); }
+    .del svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .del:active { color: var(--ng); background: var(--ng-tint); }
+    .nrow .mcode { flex-shrink: 0; font-size: var(--fs-2); color: var(--label-2); font-variant-numeric: tabular-nums; }
+    .nrow .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .nrow .main b { font-weight: 600; }
+    .nrow .main small { color: var(--label-2); font-size: var(--fs-2); }
+    .nrow .trail { flex-shrink: 0; font-size: var(--fs-2); color: var(--label-2); }
+    .nrow .trail.draft { color: var(--watch); font-weight: 600; }
+    .chev { flex-shrink: 0; width: 8px; height: 14px; color: var(--label-2); opacity: 0.6; }
+    .nrow:active { background: var(--fill); }
+
+    /* ---------- Segmented control ---------- */
+    .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 2px; border-radius: 10px; background: var(--fill); }
+    .seg label { position: relative; }
+    .seg input { position: absolute; opacity: 0; pointer-events: none; }
+    .seg span { display: flex; align-items: center; justify-content: center; min-height: var(--tap); padding: 0 6px; border-radius: 8px; font-size: var(--fs-1); font-weight: 500; text-align: center; line-height: 1.3; }
+    .seg input:checked + span { background: var(--seg-on); box-shadow: var(--shadow); font-weight: 600; }
+    .seg input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+    /* ---------- Measurement item ---------- */
+    .item { padding: 16px; scroll-margin-top: var(--head); scroll-margin-bottom: 110px; }
+    .item + .item { border-top: 0.5px solid var(--sep); }
+    .item.off { opacity: 0.5; }
+    .it-head { display: flex; align-items: flex-start; gap: 10px; }
+    .it-no { flex-shrink: 0; min-width: 2.4em; font-weight: 700; font-size: var(--fs-1); line-height: 1.45; color: var(--svc, var(--label-2)); font-variant-numeric: tabular-nums; }
+    .it-no:empty { display: none; }
+    .it-text { flex: 1; min-width: 0; }
+    .it-title { font-weight: 600; font-size: var(--fs-1); line-height: 1.45; }
+    .it-spec { margin-top: 4px; font-size: var(--fs-2); line-height: 1.5; color: var(--label-2); }
+    .it-spec b { font-weight: 600; color: var(--label); }
+    .pill { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 2px 9px; border-radius: 999px; font-size: var(--fs-2); font-weight: 700; white-space: nowrap; }
+    .pill:empty { display: none; }
+    .pill.ok { background: var(--ok-tint); color: var(--ok); }
+    .pill.watch { background: var(--watch-tint); color: var(--watch); }
+    .pill.ng { background: var(--ng-tint); color: var(--ng); }
+    .it-row { margin-top: 12px; }
+    .it-spec:empty { display: none; }
+    /* Spec ("ค่ากำหนดเฉพาะ" on the paper sheet): its own tinted line so the limit is read before typing */
+    .spec { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin-top: 6px; padding: 6px 10px; border-radius: 10px; background: var(--svc-tint, var(--fill)); line-height: 1.4; }
+    .spec span { font-size: var(--fs-2); font-weight: 500; color: var(--label-2); }
+    .spec b { font-size: var(--fs-1); font-weight: 700; color: var(--svc, var(--label)); }
+    .it-row > b { display: block; margin-bottom: 6px; font-weight: 500; font-size: var(--fs-2); color: var(--label-2); }
+    /* Before / after work: same place and size as before, just bold and dark so they stand out */
+    .it-row > b.ba, .cell-top .ba { font-weight: 700; color: var(--label); }
+    .cells { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 8px; }
+    .cells.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    /* "R / S / T" in one line, as on the sheet: a slash sits in the gap between boxes */
+    .cells.slash { grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); column-gap: 20px; }
+    .cells.slash .cell:not(:last-child) .box::after { content: '/'; position: absolute; right: -15px; top: 50%; transform: translateY(-50%); font-size: var(--fs-1); font-weight: 600; color: var(--label-2); }
+
+    /* A reading cell answers back: glyph + word + tint, never color alone */
+    .cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .cell-top { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 22px; font-size: var(--fs-2); font-weight: 500; color: var(--label-2); }
+    .cell-top span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mark { flex-shrink: 0; font-style: normal; font-weight: 700; font-size: var(--fs-2); }
+    .box { position: relative; display: flex; align-items: baseline; height: 50px; padding: 0 10px; border-radius: 10px; background: var(--fill); border: 1.5px solid transparent; }
+    .box input { flex: 1; min-width: 0; width: 100%; height: 100%; border: none; background: transparent; font-size: var(--fs-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .box input:focus { outline: none; }
+    .box em { flex-shrink: 0; align-self: center; padding-left: 4px; font-style: normal; font-size: var(--fs-2); color: var(--label-2); }
+    .box:focus-within { border-color: var(--accent); background: var(--card); }
+    .cell[data-st="ok"] .box { background: var(--ok-tint); border-color: var(--ok); }
+    .cell[data-st="ok"] .box input, .cell[data-st="ok"] .mark { color: var(--ok); }
+    .cell[data-st="watch"] .box { background: var(--watch-tint); border-color: var(--watch); }
+    .cell[data-st="watch"] .box input, .cell[data-st="watch"] .mark { color: var(--watch); }
+    .cell[data-st="ng"] .box { background: var(--ng-tint); border-color: var(--ng); }
+    .cell[data-st="ng"] .box input, .cell[data-st="ng"] .mark { color: var(--ng); }
+    .cells.c4 .box { height: 46px; padding: 0 6px; }
+    .cells.c4 .box input { font-size: var(--fs-1); text-align: center; }
+
+    .calc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    /* Calculated results: one light blue for every machine, apart from the spec box and the grey typed boxes; status colours win */
+    .calc span { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 12px; border-radius: 10px; background: #E4EEFF; color: #3B5A8C; border: 1px solid #B7CCF2; font-size: var(--fs-2); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .calc span b { font-weight: 700; font-size: var(--fs-1); color: #16366B; }
+    .calc span.ok, .calc span.watch, .calc span.ng { border-color: transparent; }
+    .calc span.ok b, .calc span.watch b, .calc span.ng b { color: inherit; }
+    .calc span.ok { background: var(--ok-tint); color: var(--ok); }
+    .calc span.watch { background: var(--watch-tint); color: var(--watch); }
+    .calc span.ng { background: var(--ng-tint); color: var(--ng); }
+    .hint { margin-top: 8px; font-size: var(--fs-2); color: var(--label-2); }
+    .ref { margin-top: 10px; font-size: var(--fs-2); }
+    .ref summary { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--accent); cursor: pointer; list-style: none; }
+    .ref summary::-webkit-details-marker { display: none; }
+    .ref summary::after { content: '›'; margin-left: 6px; transition: transform .2s; }
+    .ref[open] summary::after { transform: rotate(90deg); }
+    .ref .tbl { margin-top: 6px; overflow-x: auto; }
+    .ref table { border-collapse: collapse; font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
+    .ref th, .ref td { padding: 5px 10px; text-align: center; border-bottom: 0.5px solid var(--sep); }
+    .ref th { font-weight: 600; color: var(--label-2); }
+
+    /* Choice rows (daily ปกติ/ผิดปกติ, plate arrangement) */
+    .seg.verdict input:checked + span.ok { background: var(--ok-tint); color: var(--ok); box-shadow: none; }
+    .seg.verdict input:checked + span.ng { background: var(--ng-tint); color: var(--ng); box-shadow: none; }
+
+    /* ---------- Diagrams from the paper sheet ---------- */
+    .fig { display: block; width: 100%; margin-top: 12px; padding: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF; border: 0.5px solid var(--sep); text-align: left; }
+    .fig img { display: block; width: 100%; height: auto; max-height: 420px; object-fit: contain; background: #FFFFFF; }
+    .fig .fig-pic { position: relative; display: block; width: min(100%, calc(420px * var(--ar))); aspect-ratio: var(--ar); margin: 0 auto; padding: 0; background: none; }
+    .fig .fig-pic img { width: 100%; height: 100%; max-height: none; }
+    .fig-pt { position: absolute; transform: translate(-50%, -50%); border: 3px solid transparent; border-radius: 6px; pointer-events: none; transition: border-color .15s, background-color .15s, box-shadow .15s; }
+    .fig-pt.on { border-color: var(--ng); background: rgba(194, 31, 31, 0.14); box-shadow: 0 0 0 4px rgba(194, 31, 31, 0.18); }
+    @media (prefers-reduced-motion: reduce) { .fig-pt { transition: none; } }
+    .fig > span:last-child { display: block; padding: 8px 12px; background: var(--fill); color: var(--label-2); font-size: var(--fs-2); }
+    .fig > span:last-child b { color: var(--accent); font-weight: 600; white-space: nowrap; }
+    .fig-link { display: inline-flex; align-items: center; min-height: var(--tap); margin-top: 6px; color: var(--accent); font-size: var(--fs-2); text-align: left; }
+    .viewer { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; background: #000000; }
+    .viewer-bar { display: flex; align-items: center; gap: 12px; padding: calc(8px + env(safe-area-inset-top)) 16px 8px; color: #FFFFFF; font-size: var(--fs-2); }
+    .viewer-bar span { flex: 1; min-width: 0; }
+    .viewer-bar button { flex-shrink: 0; min-height: 44px; padding: 0 4px; color: #5AD0E6; font-size: var(--fs-1); font-weight: 600; }
+    .viewer-body { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); touch-action: pan-x pan-y pinch-zoom; }
+    .viewer-body img { max-width: 100%; max-height: 100%; background: #FFFFFF; border-radius: 6px; }
+    @media (orientation: landscape) { .viewer-body img { max-height: none; } }
+
+    /* ---------- Tasks ---------- */
+    .task { padding: 16px; scroll-margin-top: var(--head); scroll-margin-bottom: 110px; }
+    .task + .task { border-top: 0.5px solid var(--sep); }
+    .task.off { opacity: 0.5; }
+    .task .seg { margin-top: 10px; }
+    .task .seg span { gap: 5px; }
+    .task .seg input:checked + span.done { background: var(--ok-tint); color: var(--ok); box-shadow: none; }
+    .task .seg input:checked + span.notdone { background: var(--ng-tint); color: var(--ng); box-shadow: none; }
+    .note { display: block; width: 100%; min-height: 64px; margin-top: 10px; padding: 10px 12px; border: 1.5px solid transparent; border-radius: 10px; background: var(--fill); font-size: var(--fs-1); resize: vertical; }
+    .note:focus { outline: none; border-color: var(--accent); background: var(--card); }
+    .note.is-invalid { border-color: var(--ng); }
+
+    /* Section 3 Review-Revise */
+    .rr-find .ref { margin-top: 0; }
+    .rr-find ul { display: grid; gap: 8px; margin: 8px 0 2px 1.1em; color: var(--label-2); font-size: var(--fs-2); }
+    .rr-find li b { color: var(--label); font-weight: 600; }
+    .rr .cells { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rr .box input { font-size: var(--fs-1); }
+    .rr .note { min-height: 48px; }
+    .auto-tag { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--svc-tint, var(--fill)); color: var(--svc, var(--accent)); font-size: var(--fs-2); font-weight: 600; }
+    .auto-why { padding: 0 16px 12px; font-size: var(--fs-2); color: var(--label-2); }
+
+    .show-all { display: block; width: 100%; margin-top: 12px; min-height: 44px; border-radius: var(--r); color: var(--accent); font-size: var(--fs-1); }
+    .empty { padding: 14px 16px; color: var(--label-2); }
+
+    /* Inline problem banner (form-level) */
+    .banner { margin-top: 16px; padding: 12px 16px; border-radius: var(--r); background: var(--ng-tint); color: var(--ng); font-size: var(--fs-2); }
+    .banner b { display: block; font-size: var(--fs-1); margin-bottom: 2px; }
+
+    /* ---------- Bottom toolbar ---------- */
+    .toolbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); background: var(--bar); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border-top: 0.5px solid var(--sep); }
+    .toolbar-in { max-width: 680px; margin: 0 auto; display: flex; align-items: center; gap: 8px; }
+    .tally { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+    .tally::-webkit-scrollbar { display: none; }
+    .chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 0 12px; border-radius: 22px; background: var(--fill); font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .chip.ng { background: var(--ng-tint); color: var(--ng); }
+    .chip.watch { background: var(--watch-tint); color: var(--watch); }
+    .chip.plain { background: transparent; color: var(--label-2); font-weight: 500; padding: 0 4px; }
+    .btn-primary { flex-shrink: 0; min-height: 50px; padding: 0 24px; border-radius: 25px; background: var(--accent); color: var(--on-accent); font-size: var(--fs-1); font-weight: 600; }
+    .btn-primary:active { opacity: 0.8; }
+    .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 40; max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 14px; background: rgba(28, 28, 30, 0.92); color: #FFFFFF; font-size: var(--fs-2); line-height: 1.4; text-align: center; transform: translate(-50%, 8px); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; }
+    .toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+    /* ---------- Sheet (one decision, an obvious way out) ---------- */
+    .backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.35); display: flex; align-items: flex-end; justify-content: center; }
+    .sheet { width: 100%; max-width: 680px; padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); border-radius: 16px 16px 0 0; background: var(--bg); animation: up .28s cubic-bezier(.2, .9, .3, 1); }
+    @keyframes up { from { transform: translateY(100%); } to { transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+    .grabber { width: 36px; height: 5px; margin: 0 auto 14px; border-radius: 3px; background: var(--fill-strong); }
+    .sheet h2 { font-size: var(--fs-1); font-weight: 600; text-align: center; }
+    .sheet p { margin-top: 6px; color: var(--label-2); text-align: center; font-size: var(--fs-2); }
+    .sheet .acts { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+    .btn-block { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 50px; border-radius: var(--r); font-size: var(--fs-1); font-weight: 600; }
+    .btn-block.primary { background: var(--accent); color: var(--on-accent); }
+    .btn-block.secondary { background: var(--fill); color: var(--accent); }
+    .btn-block.danger { background: var(--ng); color: #FFFFFF; }
+    .btn-block.reset { margin-top: 28px; background: var(--card); color: var(--ng); border: 1px solid var(--card-line); }
+
+    /* ---------- Result ---------- */
+    .result { padding: 28px 4px 4px; text-align: center; }
+    .seal { width: 76px; height: 76px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; font-size: 2.1rem; font-weight: 700; }
+    .seal.ok { background: var(--ok-tint); color: var(--ok); }
+    .seal.ng { background: var(--ng-tint); color: var(--ng); }
+    .result h1 { margin-top: 14px; font-size: var(--fs-h); font-weight: 700; }
+    .result p { margin-top: 4px; color: var(--label-2); }
+    .find { display: flex; gap: 10px; align-items: flex-start; }
+    .find .g { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: var(--fs-2); font-weight: 700; margin-top: 1px; }
+    .find .g.ng { background: var(--ng-tint); color: var(--ng); }
+    .find .g.watch { background: var(--watch-tint); color: var(--watch); }
+    .find .t { flex: 1; min-width: 0; font-size: var(--fs-2); }
+    .find .t small { display: block; color: var(--label-2); font-size: var(--fs-2); }
+    .find .g.ok { background: var(--ok-tint); color: var(--ok); }
+    .find .t small.fix { margin-top: 4px; color: var(--label); }
+    .res { flex-shrink: 0; font-weight: 600; font-size: var(--fs-2); }
+    .res.ok { color: var(--ok); }
+    .res.ng { color: var(--ng); }
+
+    @media (max-width: 360px) { .row-label { min-width: 6em; } .cells:not(.c4) { grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); } }
+    @media (min-width: 720px) { .wrap { padding-left: 24px; padding-right: 24px; } }
+
+    /* ---------- Printout on the original paper form ---------- */
+    #printHost { display: none; }
+    .psheet { position: relative; overflow: hidden; background: #FFFFFF; font-family: var(--font); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pbg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .pv { position: absolute; font-size: 10.5px; font-weight: 600; line-height: 1; white-space: nowrap; color: #1D3FAF; transform: translate(0, -96%); }
+    .pv.c { transform: translate(-50%, -96%); }
+    .pv.mid { transform: translate(-50%, -50%); font-size: 13px; }   /* y is the box centre, not a text baseline */
+    .pv.ng { color: #C81E1E; }
+    .pv.s { font-size: 8.5px; letter-spacing: -0.02em; }
+    .pring { position: absolute; height: 15px; border: 1.4px solid #1D3FAF; border-radius: 50%; transform: translate(-50%, -78%); }
+    .pcomment { position: absolute; font-size: 10px; font-weight: 600; color: #1D3FAF; white-space: normal; }
+    .pprev { margin-top: 16px; overflow: hidden; border: 1px solid #E5E5EA; border-radius: 8px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
+    .pprev-in { transform-origin: top left; }
+    @media print {
+      body { background: #FFFFFF; }
+      body > *:not(#printHost) { display: none !important; }
+      #printHost { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-in">
+      <button type="button" class="nav-back" id="back" hidden aria-label="กลับไปหน้าเลือกเครื่อง">
+        <svg viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>เครื่อง</span>
+      </button>
+      <div class="nav-title" id="title"></div>
+      <span class="nav-prog num" id="navProg"></span>
+    </div>
+    <nav class="jumpbar" id="jumpbar" aria-label="ไปที่หัวข้อ" hidden></nav>
+    <div class="progress" id="prog" hidden><i id="progFill"></i></div>
+  </header>
+
+  <main class="wrap" id="app"></main>
+
+  <div class="toolbar" id="toolbar" hidden>
+    <div class="toolbar-in">
+      <div class="tally" id="tally" aria-live="polite"></div>
+      <button type="button" class="btn-primary" id="save">บันทึกผล</button>
+    </div>
+  </div>
+
+  <div id="sheetHost"></div>
+  <div id="printHost"></div>
+
+  <!-- Where each value goes on each paper form; generated from the PDFs (see CLAUDE.md) -->
+  <script src="print/layout.js"></script>
+  <script>
+  // =====================================================================
+  // Helpers
+  // =====================================================================
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayIso = () => { const t = new Date(); return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`; };
+  const nowHm = () => { const t = new Date(); return `${pad(t.getHours())}:${pad(t.getMinutes())}`; };
+  const num = (v) => { if (v === undefined || v === null || String(v).trim() === '') return NaN; return parseFloat(String(v).replace(',', '.')); };
+  const fmt = (n, d = 2) => isFinite(n) ? String(Math.round(n * 10 ** d) / 10 ** d) : '–';
+  const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const scrollToEl = (el) => el && el.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'center' });
+  const store = {
+    get(k, def) { try { const v = localStorage.getItem(k); return v === null ? def : JSON.parse(v); } catch (e) { return def; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+    del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+  };
+  // Service color per form (CSS [data-svc]): air, cooling, cooling tower, blower, chemical, heat, vacuum, water
+  const SVC = { EF: 'air', SF: 'air', VF: 'air', ACP: 'air', AD: 'air', AHU: 'cool', PCAC: 'cool', CT: 'tower', BP: 'blow', CFP: 'chem', HEX: 'heat', VP: 'vac', WP: 'water' };
+  // One outline icon per machine: Tabler Icons v3.19.0 (MIT, tabler.io/icons), copied in so the app works offline.
+  // Drawn with the stroke set in .mtile svg; colour comes from the machine's [data-svc] --svc-icon.
+  const ICONS = {
+    EF: '<path d="M12 13m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M14.167 10.5c.722 -1.538 1.156 -3.043 1.303 -4.514c.22 -1.63 -.762 -2.986 -3.47 -2.986s-3.69 1.357 -3.47 2.986c.147 1.471 .581 2.976 1.303 4.514" /><path d="M13.169 16.751c.97 1.395 2.057 2.523 3.257 3.386c1.3 1 2.967 .833 4.321 -1.512c1.354 -2.345 .67 -3.874 -.85 -4.498c-1.348 -.608 -2.868 -.985 -4.562 -1.128" /><path d="M8.664 13c-1.693 .143 -3.213 .52 -4.56 1.128c-1.522 .623 -2.206 2.153 -.852 4.498s3.02 2.517 4.321 1.512c1.2 -.863 2.287 -1.991 3.258 -3.386" />',
+    SF: '<path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.414 4.414v7l-6 2v-8.5l-4.48 -4.928a2 2 0 0 1 -.52 -1.345v-2.227z" />',
+    VF: '<path d="M5 8h8.5a2.5 2.5 0 1 0 -2.34 -3.24" /><path d="M3 12h15.5a2.5 2.5 0 1 1 -2.34 3.24" /><path d="M4 16h5.5a2.5 2.5 0 1 1 -2.34 3.24" />',
+    AHU: '<path d="M8 16a3 3 0 0 1 -3 3" /><path d="M16 16a3 3 0 0 0 3 3" /><path d="M12 16v4" /><path d="M3 5m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /><path d="M7 13v-3a1 1 0 0 1 1 -1h8a1 1 0 0 1 1 1v3" />',
+    PCAC: '<path d="M10 4l2 1l2 -1" /><path d="M12 2v6.5l3 1.72" /><path d="M17.928 6.268l.134 2.232l1.866 1.232" /><path d="M20.66 7l-5.629 3.25l.01 3.458" /><path d="M19.928 14.268l-1.866 1.232l-.134 2.232" /><path d="M20.66 17l-5.629 -3.25l-2.99 1.738" /><path d="M14 20l-2 -1l-2 1" /><path d="M12 22v-6.5l-3 -1.72" /><path d="M6.072 17.732l-.134 -2.232l-1.866 -1.232" /><path d="M3.34 17l5.629 -3.25l-.01 -3.458" /><path d="M4.072 9.732l1.866 -1.232l.134 -2.232" /><path d="M3.34 7l5.629 3.25l2.99 -1.738" />',
+    BP: '<path d="M12.4 3a5.34 5.34 0 0 1 4.906 3.239a5.333 5.333 0 0 1 -1.195 10.6a4.26 4.26 0 0 1 -5.28 1.863l-3.831 2.298v-3.134a2.668 2.668 0 0 1 -1.795 -3.773a4.8 4.8 0 0 1 2.908 -8.933a5.33 5.33 0 0 1 4.287 -2.16" />',
+    CFP: '<path d="M9 3l6 0" /><path d="M10 9l4 0" /><path d="M10 3v6l-4 11a.7 .7 0 0 0 .5 1h11a.7 .7 0 0 0 .5 -1l-4 -11v-6" />',
+    HEX: '<path d="M7 10h14l-4 -4" /><path d="M17 14h-14l4 4" />',
+    VP: '<path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M13.41 10.59l2.59 -2.59" /><path d="M7 12a5 5 0 0 1 5 -5" />',
+    WP: '<path d="M7.502 19.423c2.602 2.105 6.395 2.105 8.996 0c2.602 -2.105 3.262 -5.708 1.566 -8.546l-4.89 -7.26c-.42 -.625 -1.287 -.803 -1.936 -.397a1.376 1.376 0 0 0 -.41 .397l-4.893 7.26c-1.695 2.838 -1.035 6.441 1.567 8.546z" />',
+    CT: '<path d="M7 18a4.6 4.4 0 0 1 0 -9a5 4.5 0 0 1 11 2h1a3.5 3.5 0 0 1 0 7" /><path d="M11 13v2m0 3v2m4 -5v2m0 3v2" />',
+    ACP: '<path d="M3 10v6" /><path d="M12 5v3" /><path d="M10 5h4" /><path d="M5 13h-2" /><path d="M6 10h2l2 -2h3.382a1 1 0 0 1 .894 .553l1.448 2.894a1 1 0 0 0 .894 .553h1.382v-2h2a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-2v-2h-3v2a1 1 0 0 1 -1 1h-3.465a1 1 0 0 1 -.832 -.445l-1.703 -2.555h-2v-6z" />',
+    AD: '<path d="M18.963 14.938a6.54 6.54 0 0 0 -.899 -4.06l-4.89 -7.26c-.42 -.626 -1.287 -.804 -1.936 -.398a1.376 1.376 0 0 0 -.41 .397l-1.282 1.9m-1.625 2.415l-1.986 2.946c-1.695 2.837 -1.035 6.44 1.567 8.545c2.602 2.105 6.395 2.105 8.996 0a6.83 6.83 0 0 0 1.376 -1.499" /><path d="M3 3l18 18" />',
+  };
+  const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>';   // Tabler "trash"
+  const machIcon = (id) => `<span class="mtile" data-svc="${SVC[id] || ''}" aria-hidden="true"><svg viewBox="0 0 24 24">${ICONS[id] || ''}</svg></span>`;
+  // PM locations, from สถานที่_PM.txt (no MTL-9 / MTL-13)
+  const FACTORIES = ['MTL-1', 'MTL-2', 'MTL-3', 'MTL-4', 'MTL-5', 'MTL-6', 'MTL-7', 'MTL-8', 'MTL-10', 'MTL-11', 'MTL-12', 'MTL-14', 'MTL-15', 'MTL-16', 'MTL-17',
+    'MTL- CACS1,3', 'MTL- CACS2', 'MTL-ZONE-4', 'CACS1', 'CACS2', 'CACS3',
+    'CENTRAL AIR COMPRESSOR BUILDING 1', 'CENTRAL AIR COMPRESSOR BUILDING 3', 'CANTEEN 1', 'CANTEEN 2', 'CHEMICAL STORAGE BUILDING', 'COMPLEX BUILDING',
+    'ELECTRICAL SUB-STATION 1', 'ELECTRICAL SUB-STATION 2', 'PARKING BUILDING', 'RO WATER PLANT FACTORY 12', 'RO WATER PLANT ZONE 2',
+    'WASTE WATER TREATMENT UNIT 1', 'WASTE WATER TREATMENT UNIT 2', 'WASTE WATER TREATMENT UNIT 3', 'WASTE WATER TREATMENT UNIT 4', 'WASTE WATER TREATMENT ZONE 1', 'WORKSHOP'];
+  const CHEV = '<svg class="chev" viewBox="0 0 8 14" aria-hidden="true"><path d="m1 1 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // Verdict words and glyphs: status is always shape + word, not color alone
+  const VERDICT = { ok: { g: '✓', w: 'ผ่าน' }, watch: { g: '!', w: 'เฝ้าระวัง' }, ng: { g: '✕', w: 'นอกเกณฑ์' } };
+
+  // =====================================================================
+  // Reference tables (printed on the paper sheets)
+  // =====================================================================
+  const ISO = { I: [0.71, 1.8, 4.5], II: [1.12, 2.8, 7.1], III: [1.8, 4.5, 11.2], IV: [2.8, 7.1, 18] };
+  const CLASSES = [['I', 'Class I · < 15 kW'], ['II', 'Class II · > 15 kW'], ['III', 'Class III · 75–100 kW'], ['IV', 'Class IV · > 100 kW']];
+  const REFR = {
+    'R-22':  { sT: [0, 14], sP: [45, 100], dT: [60, 95],  dP: [200, 300] },
+    'R-410': { sT: [0, 14], sP: [70, 175], dT: [70, 110], dP: [340, 450] },
+    'R-32':  { sT: [3, 16], sP: [70, 175], dT: [70, 115], dP: [340, 450] },
+  };
+  const VP_FLOW = { 'CT4-65LE': [2.0, 120], 'CT3-60U': [7.0, 420], 'CT3-200U': [10.0, 600], 'CT4-450LE': [15.0, 900], 'CT3-350U': [12.0, 720], 'CT3-700': [15.0, 900] };
+  const BELT = [['A', 15, 11, '< 80'], ['A', 20, 15, '80–100'], ['A', 31, 25, '101–132'], ['A', 31, 25, '> 132'], ['B', 31, 25, '< 125'], ['B', 41, 31, '126–160'], ['B', 51, 41, '161–200'], ['C', 71, 51, '< 200'], ['C', 82, 61, '201–250'], ['C', 92, 71, '251–355']];
+  const tbl = (head, rows) => `<div class="tbl"><table><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`;
+  const REF_HTML = {
+    belt: () => `<details class="ref"><summary>ตารางมาตรฐาน 2 · ความตึงสายพาน</summary>${tbl(['ร่อง', 'ใหม่ kg', 'เดิม kg', 'พูลเล่ย์เล็ก mm'], BELT)}</details>`,
+    iso: () => `<details class="ref"><summary>ISO 10816 · ผ่านเมื่อ ≤ satisfactory</summary>${tbl(['Class', 'good ≤', 'satisfactory ≤', 'unsatisfactory ≤'], Object.entries(ISO).map(([c, v]) => [c, ...v]))}</details>`,
+    refr: () => `<details class="ref"><summary>ตารางมาตรฐาน 1 · น้ำยา</summary>${tbl(['น้ำยา', 'ดูด °C', 'ดูด psi', 'จ่าย °C', 'จ่าย psi'], Object.entries(REFR).map(([k, v]) => [k, v.sT.join('–'), v.sP.join('–'), v.dT.join('–'), v.dP.join('–')]))}</details>`,
+    vpflow: () => `<details class="ref"><summary>ตารางมาตรฐาน 4 · Flow</summary>${tbl(['Model', 'l/min', 'm³/hr'], Object.entries(VP_FLOW).map(([k, v]) => [k, ...v]))}</details>`,
+  };
+
+  // =====================================================================
+  // Form definitions (one per paper sheet)
+  // =====================================================================
+  const it = (id, type, label, o = {}) => ({ id, type, label, ...o });
+  const val = (id, label, min, max, unit, tool, o = {}) => it(id, 'value', label, { min, max, unit, tool, ...o });
+  const vib = (id, p, o = {}) => it(id, 'value', `วัดความสั่นสะเทือน จุดที่ ${p}`, { unit: 'mm/s', judge: 'iso', tool: 'Vibration meter', ref: 'iso', fig: 'fan', ...o });
+  // slash: the sheet has one after-work cell written as "R / S / T"; the app shows and prints the phases that way
+  const v3 = (id, o = {}) => it(id, 'v3', 'แรงดันไฟฟ้า 3 เฟส 400V หรือ 1 เฟส 230V', { tol: 10, ba: 'after', tool: 'Multi meter', ...o });
+  const i3 = (id, label = 'กระแสไฟฟ้าขณะเครื่องทำงาน', o = {}) => it(id, 'i3', label, { ba: 'after', spec: '≤ 115% ของ RLA', tool: 'Multi meter', ...o });
+  const ins = (id, label = 'ความเป็นฉนวนของขดลวด Motor (DC 500 V)') => it(id, 'ins', label, { spec: '> 0.5 MΩ', tool: 'Mega-Ohm meter' });
+  const belt = (id, n = 3) => it(id, 'belt', 'ความตึงสายพาน (ถ้ามี)', { n, spec: 'ตารางมาตรฐาน 2', tool: 'Belt tester', ref: 'belt' });
+  const vt = (id, n, label, fig) => it(id, 'vibTemp', label, { n, tool: 'Vibration / Thermo meter', ref: 'iso', fig });
+
+  // Diagrams cropped from the paper sheets (img/), shown beside the items that need them
+  const FIGS = {
+    fan:       { src: 'img/fan_points.png',   cap: 'ตำแหน่งจุดวัดความสั่น 1–4 (ซ้าย: ขับสายพาน · ขวา: ต่อตรง)' },
+    // ar = image width / height; pts = numbered boxes on the picture [centre x, centre y, width, height] as fractions,
+    // lit red while that point's readings are being typed
+    bp:        { src: 'img/bp_points.png',    cap: 'ตำแหน่งจุดวัด 1–3 ของชุดเกียร์และมอเตอร์', ar: 1102 / 794,
+                 pts: { 1: [0.117, 0.548, 0.089, 0.083], 2: [0.355, 0.539, 0.087, 0.083], 3: [0.860, 0.605, 0.087, 0.083] } },
+    vp:        { src: 'img/vp_points.png',    cap: 'ตำแหน่งจุดวัด 1–4 ตามแบบปั๊ม CT3 / CT4 / FT3' },
+    wp:        { src: 'img/wp_points.png',    cap: 'ตำแหน่งจุดวัด 1–3 ตามแบบปั๊ม (แนวตั้ง / แนวนอน)' },
+    wpAlign:   { src: 'img/wp_alignment.png', cap: 'วิธีวัด Alignment: ระยะห่างหน้าคัปปลิ้ง (ซ้าย) และเยื้องศูนย์ (ขวา)' },
+    hexRods:   { src: 'img/hex_rods.png',     cap: 'จุดวัดระยะเหล็กสตัดเกลียว D1–D8' },
+    hexPlates: { src: 'img/hex_plates.png',   cap: 'รูปแบบการจัดเรียงแผ่นเพลท' },
+    cfp:       { src: 'img/cfp_piping.png',   cap: 'ระบบท่อ จุด Injection point และชิ้นส่วนหัวปั๊ม' },
+  };
+  const tasks = (list) => list.map((label, i) => ({ id: `2.${i + 1}`, label }));
+
+  const FAN_TASKS = ['วัดค่าการทำงานของเครื่อง ตามข้อ 1', '5ส บริเวณเครื่อง', 'ตรวจสอบเสียงผิดปกติของมอเตอร์, สายพาน, ชุดใบพัด', 'เช็ด-ดูดฝุ่น ทำความสะอาดภายในตัวตู้ Filter, chamber', 'เช็ดทำความสะอาด Cover สายพาน (ถ้ามี)', 'ปรับตั้งสายพาน / Alignment ให้เป็นไปตามมาตรฐาน (ถ้ามี)', 'อัดจารบี เบอร์ LGMT 3/5 หรือ LGMT 2/5 (ถ้ามี)', 'ขันสกรูตัวหนอน, น็อตยึดทุกจุด', 'ล้างทำความสะอาดใบพัดลม (Blower cleaning)', 'เปลี่ยนสายพาน (ถ้ามี)'];
+
+  const FORMS = [
+    { id: 'EF', kind: 'pm', code: 'CE97F1029', name: 'Exhaust Fan', th: 'พัดลมดูด · Process Exhaust Fan',
+      subtypes: ['EF', 'PEF'], models: ['Bearing Blower', 'Bearing Motor', 'Blower', 'Motor'], panel: true, periods: ['1M', '3M', '1Y'],
+      m: [val('1.1', 'ความเร็วลมในท่อส่ง-จ่ายลม', 3, null, 'm/s', 'Air flow meter', { spec: '> 3 m/s หรือ m/c std.' }),
+          vib('1.2', 1), vib('1.3', 2), vib('1.4', 3), vib('1.5', 4), v3('1.6', { rn: true }), i3('1.7'), belt('1.8'), ins('1.9')],
+      t: tasks(FAN_TASKS),
+      rules: { '1M': ['1.6', '1.7', '2.1-2.5'], '3M': ['1.1-1.8', '2.1-2.8'], '1Y': 'all', repair: ['1.1-1.10'] } },
+
+    { id: 'SF', kind: 'pm', code: 'CE97F1029', name: 'Supply Fan / FFU', th: 'พัดลมจ่ายลม · Fan Filter Unit',
+      subtypes: ['SF', 'FFU'], models: ['Blower', 'Motor'], panel: true, periods: ['1M', '3M', '1Y'],
+      m: [val('1.1', 'ความเร็วลมในท่อส่ง-จ่ายลม', 3, null, 'm/s', 'Air flow meter', { spec: '> 3 m/s หรือ m/c std.', only: 'SF' }),
+          val('1.2', 'ความเร็วลมหัวจ่าย / ดูด (grille)', 3, null, 'm/s', 'Air flow meter', { spec: '> 3 m/s หรือ m/c std.', only: 'FFU' }),
+          vib('1.3', 1, { only: 'SF' }), vib('1.4', 2, { only: 'SF' }), vib('1.5', 3, { only: 'SF' }), vib('1.6', 4, { only: 'SF' }),
+          v3('1.7', { rn: true }), i3('1.8'), belt('1.9'), ins('1.10')],
+      t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', 'เปลี่ยนแผ่นกรองอากาศ Pre-Filter / เช็ค Diff. เกจ', '5ส บริเวณเครื่อง', 'ตรวจสอบเสียงผิดปกติของมอเตอร์, สายพาน, ชุดใบพัด', 'เช็ด-ดูดฝุ่น ทำความสะอาดภายในตัวตู้ Filter, chamber', 'เช็ดทำความสะอาด Cover สายพาน (ถ้ามี)', 'ปรับตั้งสายพาน / Alignment ให้เป็นไปตามมาตรฐาน (ถ้ามี)', 'อัดจารบี เบอร์ LGMT 3/5 หรือ LGMT 2/5 (ถ้ามี)', 'ขันสกรูตัวหนอน, น็อตยึดทุกจุด', 'ล้างทำความสะอาดใบพัดลม (Blower cleaning)', 'เปลี่ยนแผ่นกรองอากาศ Medium Filter (ถ้ามี)', 'เปลี่ยนแผ่นกรองอากาศ HEPA Filter (ถ้ามี)', 'เปลี่ยนสายพาน (ถ้ามี)']),
+      rules: { '1M': ['1.7', '1.8', '2.1-2.6'], '3M': ['1.1-1.9', '2.1-2.8'], '1Y': 'all', repair: ['1.1-1.10'] } },
+
+    { id: 'VF', kind: 'pm', code: 'CE97F1029', name: 'Ventilation Fan', th: 'พัดลมระบายอากาศ',
+      subtypes: ['VF'], models: ['Blower', 'Motor'], panel: true, periods: ['1M', '3M', '6M', '1Y'],
+      m: [val('1.1', 'ความเร็วลมที่ Grille ด้านดูด', 3, null, 'm/s', 'Air flow meter', { spec: '> 3 m/s หรือ m/c std.' }),
+          vib('1.2', 1), vib('1.3', 2), vib('1.4', 3), vib('1.5', 4), v3('1.6', { rn: true }), i3('1.7'), belt('1.8'), ins('1.9')],
+      t: tasks(FAN_TASKS),
+      rules: { '1M': ['1.6', '1.7', '2.1-2.5'], '3M': ['1.1-1.8', '2.1-2.8'], '6M': 'all', '1Y': 'all', repair: ['1.1-1.10'] } },
+
+    { id: 'AHU', kind: 'pm', code: 'CE97F1009L', name: 'Air Handling Unit', th: 'OAHU · AHU · FCU · OAC',
+      subtypes: ['OAHU', 'AHU', 'FCU', 'OAC'], models: ['Blower', 'Motor'], panel: true, periods: ['1M', '3M', '6M', '1Y'],
+      m: [val('1.1', 'อุณหภูมิลมจ่าย (Supply)', 8, 15, '°C', 'Thermo meter'),
+          val('1.2', 'ความชื้นลมจ่าย (Supply)', 60, 95, '%RH', 'Thermo meter'),
+          val('1.3', 'อุณหภูมิลมกลับ (Room)', 24, 28, '°C', 'Thermo meter'),
+          val('1.4', 'ความชื้นลมกลับ (Room)', 40, 80, '%RH', 'Thermo meter'),
+          val('1.5', 'อุณหภูมิน้ำเย็นด้านเข้า', 5, 8, '°C', 'Thermo meter'),
+          val('1.6', 'อุณหภูมิน้ำเย็นด้านออก', 9, 12, '°C', 'Thermo meter'),
+          val('1.7', 'แรงดันน้ำเย็นด้านเข้า', 3.0, 6.0, 'kg/cm²', 'Pressure gauge', { ba: 'after' }),
+          val('1.8', 'แรงดันน้ำเย็นด้านออก', 2.5, 5.5, 'kg/cm²', 'Pressure gauge', { ba: 'after' }),
+          v3('1.9', { rn: true }), i3('1.10'),
+          ins('1.11', 'ความเป็นฉนวนขดลวด Motor No.1'), ins('1.12', 'ความเป็นฉนวนขดลวด Motor No.2'),
+          belt('1.13'),
+          it('1.14', 'grid', 'ความเร็วลมหน้าแผงคอยล์น้ำเย็น (Fan coil)', { min: 2.8, max: 3.5, unit: 'm/s', tool: 'Flow meter' })],
+      t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', 'เปลี่ยนแผ่นกรองอากาศ Pre-Filter', 'เปลี่ยนแผ่นกรองอากาศ Medium Filter', 'เปลี่ยนแผ่นกรองอากาศ HEPA Filter', 'ทำความสะอาดท่อเดรน / ถาดเดรน', 'เช็ดทำความสะอาดภายในตัวตู้ OAC / AHU / FCU', 'ตรวจเช็คหลอดไฟ-ระบบส่องสว่างภายในตู้', 'ตรวจเช็คสภาพการทำงานของเกจ Diff. Pressure', 'ตรวจเช็คสภาพการทำงานของเกจวัดแรงดันน้ำเย็น เข้า-ออก', 'ปรับตั้งสายพาน ให้เป็นไปตามมาตรฐาน (ถ้ามี)', 'อัดจารบี (ถ้ามี)', 'ตรวจสอบระบบระบายน้ำของ AHU โดยการเทน้ำ', 'ทดสอบชุดควบคุมอุณหภูมิ AZBIL/YAMATAKE (AUTO/MANUAL)', 'ทดสอบวัด Dew point sensor ตาม Setting (Error ±1 °C)', 'ทดสอบวัด Temp sensor ตาม Setting', 'ทดสอบวัด Humidity sensor ตาม Setting', 'ทดสอบวัดปริมาณลมในท่อได้ CMH ตาม Design', 'ล้างแผงคอยล์น้ำเย็น (Fan coil)']),
+      rules: { '1M': ['1.1-1.10', '2.1', '2.2', '2.5-2.9'], '3M': ['1.1-1.10', '2.1', '2.2', '2.5-2.12'], '6M': 'all', '1Y': 'all', repair: ['1.1-1.9'] } },
+
+    { id: 'PCAC', kind: 'pm', code: 'CE97F1002K', name: 'Air Condition Unit', th: 'เครื่องปรับอากาศ AC · PC',
+      subtypes: ['AC', 'PC'], models: ['CDU', 'FCU'], panel: true, periods: ['1M', '3M', '6M', '1Y'], refr: true,
+      note1M: 'รอบ 1M เฉพาะ Canteen 1, 2',
+      m: [val('1.1', 'FCU อุณหภูมิลมจ่าย (Supply)', 8, 12, '°C', 'Thermo meter'),
+          val('1.2', 'FCU อุณหภูมิลมกลับ (Room)', 16, 28, '°C', 'Thermo meter'),
+          it('1.3', 'value', 'อุณหภูมิท่อน้ำยาด้านดูด', { unit: '°C', judge: 'refT', tool: 'Thermo meter', ref: 'refr' }),
+          i3('1.4', 'กระแส Compressor No.1', { ba: 'both' }),
+          i3('1.5', 'กระแส Compressor No.2', { ba: 'both' }),
+          v3('1.6', { ba: 'both' }),
+          it('1.7', 'pair', 'ผลต่างอุณหภูมิ เข้า-ออก ดรายเออร์ฟิวเตอร์ (ถ้ามี)', { labels: ['Comp.1', 'Comp.2'], max: 5, unit: '°C', spec: '< 5 °C', tool: 'Thermo meter' }),
+          it('1.8', 'pair', 'ผลต่างอุณหภูมิอากาศ เข้า-ออก Condensing unit', { labels: ['CDU1', 'CDU2'], min: 12, max: 18, unit: '°C', spec: '15 ± 3 °C', tool: 'Thermo meter' }),
+          it('1.9', 'refr', 'ความดันน้ำยา Compressor No.1', { tool: 'Manifold gauge', ref: 'refr' }),
+          it('1.10', 'refr', 'ความดันน้ำยา Compressor No.2', { tool: 'Manifold gauge', ref: 'refr' }),
+          ins('1.11', 'ความเป็นฉนวนขดลวด Compressor No.1'), ins('1.12', 'ความเป็นฉนวนขดลวด Compressor No.2'),
+          belt('1.13', 2),
+          it('1.14', 'grid', 'ความเร็วลมด้านกลับ', { min: 2.8, max: 3.5, unit: 'm/s', tool: 'Flow meter' })],
+      t: tasks(['วัดค่าการทำงานของเครื่องปรับอากาศ ตามข้อ 1', 'เปลี่ยน Pre-Filter หน้าแอร์ PC', 'ล้างทำความสะอาดแผงคอยล์เย็นและแผ่นกรองอากาศ FCU', 'ทำความสะอาดท่อเดรน / ถาดเดรน FCU', 'เช็ดทำความสะอาดหัว Probe วัดอุณหภูมิ FCU', 'ขันน็อตจุดต่อสายไฟชุดแผงวงจรไฟฟ้าและมาร์คสี FCU+CDU', 'เป่าทำความสะอาดแผงวงจรไฟฟ้า FCU+CDU', 'ล้างทำความสะอาดแผงคอยล์ร้อน CDU', 'ตรวจเช็คการตันของดรายเออร์ฟิวเตอร์', 'ตรวจเช็ค Fan Capacitor, Compressor Capacitor (ถ้ามี)', 'ปรับตั้งสายพาน ให้เป็นไปตามมาตรฐาน (ถ้ามี)', 'เปลี่ยนสายพาน ให้เป็นไปตามมาตรฐาน (ถ้ามี)', 'ตรวจสอบความเรียบร้อยโดยรวมของเครื่องจักรเพื่อความพร้อมต่อการใช้งาน', 'ตรวจสอบระบบระบายน้ำโดยการเทน้ำ รวมถึงถาดเดรนแอร์และ Heater', 'ตรวจสอบฉนวนของเครื่องและท่อดักท์', 'ล้างทำความสะอาด net filter (ถ้ามี)']),
+      rules: { '1M': ['1.1-1.8', '2.16'], '3M': ['1.1-1.8', '1.13', '2.1', '2.3-2.4', '2.6-2.15'], '6M': ['1.1-1.14', '2.1-2.11', '2.13-2.16'], '1Y': 'all', repair: ['1.1-1.12'] } },
+
+    { id: 'BP', kind: 'pm', code: 'CE97F1012H', name: 'Blower Pump', th: 'ปั๊มลม Blower',
+      subtypes: ['MX', 'Other'], models: ['Pump'], panel: true, periods: ['3M', '1Y'],
+      m: [v3('1.1', { slash: true }), i3('1.2', undefined, { slash: true }), ins('1.3'),
+          vt('1.4', 3, 'ความสั่นสะเทือน / ความร้อน ชุดเกียร์และมอเตอร์', 'bp')],
+      t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', 'ตรวจสอบการรั่วของน้ำมันเกียร์ และเปลี่ยนแผ่น Filter', 'อัดจารบี / ตรวจเช็คและเติมน้ำมันเกียร์ (ถ้ามี)', 'ตรวจสอบเสียงผิดปกติชุดเกียร์, มอเตอร์', 'เปลี่ยนชิ้นส่วนหลัก Bearing, Seal, Gasket, O-ring', 'ขัดล้างทำความสะอาดภายใน, พ่นสีเคลือบเกียร์, พ่นสีภายนอก', 'เปลี่ยน Bearing motor, เคลือบน้ำยา Varnish, อบขดลวดมอเตอร์']),
+      rules: { '3M': ['1.1', '1.2', '1.4', '2.1-2.4'], '1Y': 'all', repair: 'all' } },
+
+    { id: 'CFP', kind: 'pm', code: 'CE97F1012H', name: 'Chemical Feed Pump', th: 'ปั๊มจ่ายสารเคมี',
+      subtypes: ['CHP', 'CP', 'WP', 'Other'], models: ['Pump'], panel: true, periods: ['3M'],
+      m: [v3('1.1', { slash: true }), i3('1.2', undefined, { slash: true }), ins('1.3'),
+          it('1.4', 'dosing', 'อัตราการไหลของน้ำยา ที่จุด Injection point', { tool: 'บีกเกอร์ + นาฬิกาจับเวลา', fig: 'cfp' })],
+      t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', 'ตรวจสอบการรั่วของน้ำยา, สาย, ท่อ, ตัวปั๊ม', 'ล้างทำความสะอาด Foot valve', 'ล้างทำความสะอาด Ball check valve ด้าน Suction', 'ล้างทำความสะอาด Ball check valve ด้าน Discharge', 'ล้างทำความสะอาด หัวฉีดน้ำยา (Injection point)']),
+      rules: { '3M': 'all', repair: 'all' } },
+
+    { id: 'HEX', kind: 'pm', code: 'CE97F1029', name: 'Heat Exchanger', th: 'เครื่องแลกเปลี่ยนความร้อน',
+      subtypes: ['HEX'], models: ['Model'], panel: false, periods: ['3M'],
+      m: [val('1.1', 'อุณหภูมิน้ำเข้า Chiller → HEX', 5, 8, '°C', 'Thermo meter'),
+          val('1.2', 'อุณหภูมิน้ำออก HEX → Chiller', 9, 13, '°C', 'Thermo meter'),
+          val('1.3', 'อุณหภูมิน้ำเข้า Process → HEX', 20, 35, '°C', 'Thermo meter'),
+          val('1.4', 'อุณหภูมิน้ำออก HEX → Process', 10, 25, '°C', 'Thermo meter', { spec: '10 – 25 °C หรือ m/c std.' }),
+          val('1.5', 'แรงดันน้ำเข้า Chiller → HEX', 3.0, 6.0, 'kg/cm²', 'Pressure gauge'),
+          val('1.6', 'แรงดันน้ำออก HEX → Chiller', 2.5, 5.5, 'kg/cm²', 'Pressure gauge'),
+          val('1.7', 'แรงดันน้ำเข้า Process → HEX', 3.0, 6.0, 'kg/cm²', 'Pressure gauge'),
+          val('1.8', 'แรงดันน้ำออก HEX → Process', 2.5, 5.5, 'kg/cm²', 'Pressure gauge'),
+          ...[1, 2, 3, 4, 5, 6, 7, 8].map(d => val(`1.${8 + d}`, `ระยะเหล็กสตัดเกลียว D${d}`, null, null, 'mm', 'Meter tape', { spec: 'ขึ้นอยู่กับหน้างาน', fig: 'hexRods' })),
+          it('1.17', 'choice', 'รูปแบบการจัดเรียงแผ่นเพลท', { options: ['Multi-pass', 'Single-pass'], fig: 'hexPlates' })],
+      t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', 'ถอดแผ่นเพลทพร้อมทำเขียนระบุหมายเลขแผ่น', 'ล้างแผ่นเพลท (Plate cleaning)', 'Circulate น้ำในท่อด้านเข้า-ออก, ล้างระบบท่อ', 'ล้างทำความสะอาดถังรับน้ำ CST, WST', 'ล้างทำความสะอาดเช็ควาล์ว (Check valve) ของปั๊มน้ำ', 'ล้างทำความสะอาด Y-Strainer ของปั๊มน้ำ', 'ตรวจสอบการประกอบแผ่นเพลทตามหมายเลขตามข้อ 2.2', 'ประกอบระยะสตัดตามข้อ 1.9 – 1.16', 'เปิดปั๊มน้ำเข้าระบบและตรวจสอบจุดรั่ว', 'หุ้มฉนวนของ Heat exchanger']),
+      rules: { '3M': 'all', repair: ['1.1-1.8'] } },
+
+    { id: 'VP', kind: 'pm', code: 'CE97F1006J', name: 'Vacuum Pump', th: 'ปั๊มสุญญากาศ · High Vacuum',
+      subtypes: ['VP'], models: ['Pump', 'Motor'], panel: true, periods: ['1M', '1Y'], vpModel: true,
+      m: [v3('1.1', { rn: true }), i3('1.2'),
+          val('1.3', 'อุณหภูมิน้ำขาเข้าปั๊ม', null, 30, '°C', 'Thermo meter', { spec: '< 30 °C' }),
+          val('1.4', 'แรงดันน้ำขาเข้าปั๊ม', 2.0, 5.5, 'kg/cm²', 'Pressure gauge'),
+          it('1.5', 'value', 'อัตราการไหลของน้ำเข้าปั๊ม', { unit: 'l/min', judge: 'vpflow', tool: 'Flow meter', ref: 'vpflow' }),
+          val('1.6', 'Unload test (ปิดวาล์วด้านดูด 5 วินาที)', -760, -740, 'mmHg', 'Vacuum gauge', { neg: true }),
+          ins('1.7'),
+          vt('1.8', 4, 'ความสั่นสะเทือน / ความร้อน ปั๊มและมอเตอร์', 'vp')],
+      t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', '5ส บริเวณเครื่อง', 'ตรวจเช็คการรั่วของน้ำจากปั๊มสุญญากาศ', 'ตรวจสอบสภาพเกจวัดแรงดูด (vacuum gauge)', 'ทำความสะอาด Y-Strainer ของท่อด้านดูด', 'ทำความสะอาด Flow meter น้ำ', 'เปลี่ยนสายพาน, ตรวจสอบร่อง Pulley และปรับตั้ง Alignment', 'เก็บตัวอย่างน้ำมันเพื่อวิเคราะห์ (เขียนระบุหมายเลขเครื่อง)', 'ตรวจสอบระดับน้ำมันและเติมน้ำมัน ประมาณ ½ ของ Sight glass', 'เปลี่ยนชิ้นส่วนหลัก Bearing, Seal, Gasket, O-ring, Gear', 'ขัดล้างทำความสะอาดภายใน, พ่นสีเคลือบใบพัด, พ่นสีภายนอก', 'เปลี่ยน Bearing motor, เคลือบน้ำยา Varnish, อบขดลวดมอเตอร์']),
+      rules: { '1M': ['1.1-1.6', '2.1-2.9'], '1Y': 'all', repair: 'all' } },
+
+    { id: 'WP', kind: 'pm', code: 'CE97F1012H', name: 'Water Pump', th: 'ปั๊มน้ำ',
+      subtypes: ['CP', 'CWP', 'WP', 'Other'], models: ['Pump', 'Motor'], panel: true, periods: ['3M', '1Y'], pumpState: true,
+      m: [v3('1.1', { tol: 5, slash: true, note: 'วัดหลังแมกเนติกคอนแทคเตอร์' }), i3('1.2', undefined, { slash: true }),
+          val('1.3', 'แรงดันน้ำขาเข้าปั๊ม ขณะทำงาน', 2.0, 6.5, 'kg/cm²', 'Pressure gauge'),
+          val('1.4', 'Unload test (ปิดวาล์ว Discharge 5 วินาที)', 3.0, 6.5, 'kg/cm²', 'Pressure gauge'),
+          ins('1.5'),
+          vt('1.6', 3, 'ความสั่นสะเทือน / ความร้อน ปั๊มและมอเตอร์', 'wp'),
+          it('1.7', 'align', 'ปรับตั้งศูนย์ Alignment', { tool: 'Dial gauge / Feeler gauge', fig: 'wpAlign' }),
+          it('1.8', 'vunb', 'แรงดันเฉลี่ยและแรงดันไม่สมดุล (จากข้อ 1.1)', { from: '1.1' })],
+      t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', '5ส บริเวณเครื่อง', 'ตรวจเช็คการรั่วของน้ำจากปั๊ม (Grand packing : 3-5 หยด/นาที)', 'ตรวจสอบสภาพเกจวัดแรงดัน (pressure gauge)', 'ทำความสะอาด Y-Strainer / Check valve', 'ล้างทำความสะอาด Foot valve (ถ้ามี)', 'ตรวจสอบสภาพของลูกยาง และปรับตั้งศูนย์ (Alignment) (ถ้ามี)', 'เปลี่ยนชิ้นส่วนหลัก Bearing, Seal, Gasket, O-ring', 'ขัดล้างทำความสะอาดภายใน, พ่นสีเคลือบใบพัด, พ่นสีภายนอก', 'เปลี่ยน Bearing motor, เคลือบน้ำยา Varnish, อบขดลวดมอเตอร์']),
+      rules: { '3M': ['1.1-1.4', '1.6-1.8', '2.1-2.7'], '1Y': 'all', repair: 'all' } },
+
+    // ---------- Daily logs (one entry = one machine, one day) ----------
+    { id: 'CT', kind: 'daily', code: 'CE97F1005Q', name: 'Cooling Tower', th: 'ตรวจรายวัน',
+      m: [it('d1', 'ok', 'Scale in cooling tower', { spec: 'สะอาดและไม่มีตะกรัน' }),
+          it('d2', 'ok', 'ระดับน้ำต่ำกว่า Overflow', { spec: '0.5 – 1 cm' }),
+          it('d3', 'ok', 'Water spray', { spec: 'ทุกรูของ Sprinkler pipe ต้องมีน้ำออก' }),
+          it('d4', 'ok', 'Sprinkler head', { spec: 'ไม่รั่ว ไม่หลวม' }),
+          it('d5', 'ok', 'Moving of sprinkler', { spec: 'หมุนปกติ' }),
+          it('d6', 'ok', 'Around cooling tower', { spec: 'ไม่มีรอยแตก' }),
+          it('d7', 'ok', 'Water tray', { spec: 'ไม่มีน้ำเลอะรอบถาด' }),
+          it('d8', 'ok', 'Inlet louver', { spec: 'ไม่แตก ไม่หลวม' }),
+          it('d9', 'ok', 'PVC filling', { spec: 'สะอาด ไม่แตก ไม่หลวม' }),
+          val('d10', 'Water inlet temp.', null, 40, '°C', '', { ba: 'after', spec: 'ไม่เกิน 40 °C' }),
+          it('d11', 'ok', 'Water level in underground tank', { spec: 'น้ำต้องสัมผัสลูกลอย' }),
+          val('d12', 'ค่าน้ำ IW', 200, 400, 'µS/cm', '', { ba: 'after' })] },
+
+    { id: 'ACP', kind: 'daily', code: 'CE97F1005Q', name: 'Air Compressor', th: 'ตรวจรายวัน',
+      m: [val('d1', 'Oil pressure', 2.0, 3.0, 'kg/cm²', '', { ba: 'after' }),
+          val('d2', '1st discharge pressure', 1.5, null, 'kg/cm²', '', { ba: 'after' }),
+          val('d3', '2nd discharge pressure', null, 6.9, 'kg/cm²', '', { ba: 'after' }),
+          val('d4', 'Motor current', null, null, 'A', '', { ba: 'after', spec: 'จดค่าไว้' }),
+          val('d5', 'Oil temp.', null, 60, '°C', '', { ba: 'after', spec: '< 60 °C' }),
+          val('d6', '1st discharge temp.', null, 180, '°C', '', { ba: 'after' }),
+          val('d7', '2nd suction temp.', null, 55, '°C', '', { ba: 'after' }),
+          val('d8', '2nd discharge temp.', null, 180, '°C', '', { ba: 'after' }),
+          val('d9', '1st suction pressure', -45, null, 'kg/cm²', '', { ba: 'after', neg: true, spec: 'ไม่ต่ำกว่า -45 (ตามฟอร์ม)' }),
+          val('d10', '1st suction temp.', null, 55, '°C', '', { ba: 'after' }),
+          val('d11', 'Running hour', null, null, 'hr', '', { ba: 'after', spec: 'ชั่วโมงทำงานสะสม' }),
+          it('d12', 'ok', 'Drain solenoid valve'),
+          it('d13', 'ok', 'Lubricate oil level', { spec: 'อยู่ช่วง H – L' }),
+          it('d14', 'ok', '3 way solenoid valve', { spec: 'ไม่มีน้ำซึม' }),
+          val('d15', 'Water inlet temp.', null, 40, '°C', '', { ba: 'after' }),
+          val('d16', 'Water outlet temp.', null, 45, '°C', '', { ba: 'after' }),
+          val('d17', 'Water inlet pressure', 0.8, null, 'kg/cm²', '', { ba: 'after' }),
+          val('d18', 'Water outlet pressure', 0.3, null, 'kg/cm²', '', { ba: 'after' }),
+          it('d19', 'ok', 'สภาพทั่วไป')] },
+
+    { id: 'AD', kind: 'daily', code: 'CE97F1005Q', name: 'Air Dryer', th: 'ตรวจรายวัน',
+      m: [it('d1', 'ok', 'Compressor noise'),
+          val('d2', 'Dew point', null, 10, '°C', '', { ba: 'after', spec: 'ไม่เกิน 10 °C' }),
+          it('d3', 'ok', 'Running lamp'),
+          it('d4', 'ok', 'Drain test'),
+          val('d5', 'Low pressure', 0.35, 0.6, 'MPa', '', { ba: 'after' }),
+          val('d6', 'High pressure', 1.1, 1.9, 'MPa', '', { ba: 'after' })] },
+  ];
+  const formById = (id) => FORMS.find(f => f.id === id);
+
+  // Section 3 Review-Revise per PM system (daily logs have none). It is advice, kept apart from the inspection:
+  // nothing in it is required, it reads no other section, and it never changes the inspection result.
+  // 3.1 = repeat-breakdown findings [headline, cause]; 3.2 = extra checks the engineer recommends.
+  // A check with cells judges its own readings (min/max; "หลังทำ" decides when filled); any other is a ปกติ/ผิดปกติ look.
+  // per = smallest PM round the check is recommended for. EF/SF/VF/AHU and CFP-3.1 come from the Review-Revise forms;
+  // draft: true = written for this app from the sheet's own items, waiting for an engineer's review.
+  const chk = (l, why, lim, per, o = {}) => ({ l, why, lim, per, ...o });
+  const ba = (min, max, u) => [{ k: 'b', l: 'ก่อนทำ', u, min, max }, { k: 'a', l: 'หลังทำ', u, min, max }];
+  const RR = {
+    EF: { find: [['แรงดูดไอสารเคมีและไอความร้อนตก', 'จากใบพัดลมมีคราบสารเคมีเกาะหนาและสายพานหย่อน'], ['มอเตอร์สั่นสะเทือนสูงผิดปกติ', 'เกิดจากลูกปืนแบริ่งโบลเวอร์/มอเตอร์แห้งหรือสึกหรอ'], ['กระแสไฟฟ้ามอเตอร์เกินพิกัด (Overload)', 'จากระบบระบายอากาศเสียสมดุลหรือมีสิ่งกีดขวางในท่อดักท์'], ['มีเสียงเสียดสีผิดปกติที่ Pulley และ Belt', 'เพราะแนวศูนย์เพลาและพูลเลย์ (Alignment) คลาดเคลื่อน']],
+      rows: [chk('ตรวจวัดแรงดันสถิตในท่อดักท์ (Duct Static Pressure Drop)', 'ป้องกันแรงดูดตก', 'ΔP ท่อดูด > 250 Pa (สม่ำเสมอตามเกณฑ์ออกแบบ)', '3M', { cells: ba(250, null, 'Pa') }),
+        chk('ตรวจวัดอุณหภูมิผิวแบริ่งมอเตอร์และโบลเวอร์ (Bearing Temp)', 'ป้องกันแบริ่งไหม้/ล็อก', 'อุณหภูมิผิวแบริ่ง < 70 °C (ไม่เกิน Max std.)', '3M', { cells: [{ k: 'm', l: 'แบริ่งมอเตอร์', u: '°C', max: 70 }, { k: 'f', l: 'แบริ่งโบลเวอร์', u: '°C', max: 70 }] }),
+        chk('ตรวจสอบความสั่นสะเทือนแกนเพลา (Shaft Vibration Severity)', 'ป้องกันเพลาคดและฐานหลวม', 'ISO 10816 ระดับ Good/Satisfactory (≤ 2.8 mm/s)', '3M', { cells: ba(null, 2.8, 'mm/s') })] },
+    SF: { find: [['แรงดันบวกห้องคลีนรูมตก (Room Positive Pressure Drop)', 'เพราะไม่มีเกณฑ์เช็ค Diff Pressure สม่ำเสมอ ทำให้กรองฝุ่นตัน'], ['อนุภาคฝุ่นเล็ดลอดเข้าพื้นที่ Cleanroom', 'เพราะขอบซีลยาง (Gasket) ของ HEPA ฉีกขาดขณะประกอบ'], ['ความเร็วลมส่งหัวจ่ายไม่สม่ำเสมอ', 'จากความตึงสายพานตก ทำให้รอบพัดลมไม่ได้ตามสเปก'], ['เกิดการสะสมของจุลินทรีย์/กลิ่นอับในท่อลม', 'จากห้องผสมอากาศ (Mixing Chamber) ไม่ได้ทำความสะอาด']],
+      rows: [chk('เช็คแรงดันคร่อม Filter HEPA (ΔP limit)', 'ป้องกันลมจ่ายตกและกรองตัน', 'HEPA < 300 Pa (ถ้าถึงให้วางแผนเปลี่ยน)', '3M', { cells: ba(null, 300, 'Pa') }),
+        chk('ค่าความเร็วลมหน้ากริลจ่าย (Supply Grille Velocity Profile)', 'ความสม่ำเสมอของลมคลีนรูม', 'เฉลี่ย 0.45 m/s ± 20% (0.36 – 0.54)', '3M', { cells: ba(0.36, 0.54, 'm/s') }),
+        chk('ตรวจวัดแรงดันบวกห้อง Cleanroom (Room Differential Pressure)', 'รักษาสภาพแวดล้อมคลีนรูม', 'ค่า Diff Pressure ห้อง > 10 Pa เสมอ', '3M', { cells: ba(10, null, 'Pa') })] },
+    VF: { find: [['อัตราการระบายอากาศและถ่ายเทความร้อนลดลง', 'เนื่องจากตะแกรง Grille ด้านดูดมีฝุ่นและใยผ้าอุดตัน'], ['พัดลมส่งเสียงดังผิดปกติและมีอาการสั่นสะเทือน', 'จากน็อตยึดฐานมอเตอร์และโครงสร้างพัดลมคลายตัว'], ['สายพานหย่อนและรูดลื่น (Belt Slip)', 'ส่งผลให้รอบการหมุนของใบพัดตกและสายพานสึกหรอเร็ว'], ['บานเกล็ดเปิด-ปิดอัตโนมัติ (Shutter / Gravity Damper) ติดขัด', 'ทำให้ระบายลมไม่ออกและมีความชื้นสะสม']],
+      rows: [chk('ตรวจวัดความเร็วลมหน้า Grille ด้านดูด (Grille Face Velocity)', 'ป้องกันการอุดตันของหน้ากาก', 'ความเร็วลม ≥ 3.0 m/s (สม่ำเสมอทั่วหน้าแผง)', '3M', { cells: ba(3.0, null, 'm/s') }),
+        chk('ตรวจเช็คความตึงและรอยแตกลายงาของสายพาน (Belt Tension & Wear)', 'ป้องกันสายพานรูด/ขาด', 'ความตึงตามตารางมาตรฐาน 2 (ไม่แตกลายงา)', '3M'),
+        chk('ตรวจสภาพการเปิด-ปิดของบานเกล็ดระบายลม (Shutter Mechanism)', 'ระบายลมได้คล่องตัว', 'บานเกล็ดเปิดสุด 100% ขณะทำงาน ไม่ติดขัด', '3M')] },
+    AHU: { find: [['อุณหภูมิและความชื้นห้อง Cleanroom เกินเกณฑ์', 'จากคอยล์เย็น (Cooling Coil) อุดตันหรือวาล์วน้ำเย็นเปิดไม่สุด'], ['แรงดันคร่อมฟิลเตอร์สูงเกินเกณฑ์', 'เนื่องจากไม่ได้เปลี่ยน Pre/Medium filter ตามรอบเวลา'], ['น้ำรั่วล้นถาดน้ำทิ้ง (Drain Pan Overflow)', 'เกิดจากท่อน้ำทิ้งอุดตันด้วยเมือกและตะไคร่'], ['ความตึงสายพานตกและมีฝุ่นผงสายพานฟุ้ง', 'ส่งผลต่อความสะอาดและรอบการจ่ายลม']],
+      rows: [chk('เช็คแรงดันคร่อม Filter (ΔP limit)', 'ป้องกันลมจ่ายตก', 'HEPA < 300 Pa, Medium < 180 Pa', '3M', { cells: [{ k: 'h', l: 'HEPA', u: 'Pa', max: 300 }, { k: 'm', l: 'Medium', u: 'Pa', max: 180 }] }),
+        chk('ตรวจเช็คอุณหภูมิพื้นที่ควบคุม', 'ควบคุมความเย็นตามมาตรฐาน', 'อยู่ในช่วง 20 – 24 °C (ตามพื้นที่ควบคุม)', '3M', { cells: ba(20, 24, '°C') }),
+        chk('ตรวจวัดการไหลของท่อน้ำทิ้งและดักกลิ่น (Trap Drain)', 'ป้องกันน้ำล้นถาดและกลิ่นย้อน', 'น้ำไหลสะดวก ไม่มีสิ่งอุดตันใน Trap', '3M')] },
+    PCAC: { draft: true, find: [['ความเย็นไม่พอ อุณหภูมิลมจ่ายสูง', 'จากน้ำยารั่วที่ข้อต่อ/แฟลร์ท่อน้ำยาที่สั่นคลาย ทำให้แรงดันน้ำยาต่ำ'], ['ดรายเออร์ฟิวเตอร์อุดตัน', 'ผลต่างอุณหภูมิเข้า-ออกเกิน 5 °C คอมเพรสเซอร์ทำงานหนัก'], ['คอมเพรสเซอร์ตัดด้วย Overload', 'จากแผงคอยล์ร้อน CDU สกปรก แรงดันด้านสูงและกระแสเกิน'], ['น้ำหยด/ล้นถาดเดรน FCU', 'จากท่อเดรนอุดตันด้วยเมือกและฝุ่น']],
+      rows: [chk('กระแส Compressor เทียบค่า RLA ป้ายเครื่อง', 'ป้องกันคอมเพรสเซอร์ไหม้/ตัด Overload', 'ไม่เกิน 100% RLA', '3M'),
+        chk('แรงดันน้ำยาด้านดูด (Suction pressure)', 'จับน้ำยารั่วได้แต่เนิ่นๆ', 'อยู่ในช่วงของชนิดน้ำยา (ตารางมาตรฐาน 1)', '3M'),
+        chk('ผลต่างอุณหภูมิลมกลับ – ลมจ่าย ผ่านคอยล์เย็น (ΔT)', 'ยืนยันความสามารถทำความเย็น', 'ΔT 8 – 12 °C', '3M', { cells: [{ k: 'dt', l: 'ΔT', u: '°C', min: 8, max: 12 }] })] },
+    BP: { draft: true, find: [['น้ำมันเกียร์รั่วซึม', 'จากซีลและปะเก็นเสื่อม ระดับน้ำมันต่ำจนเฟืองสึก'], ['ชุดเกียร์ร้อนและสั่นสูง', 'จากน้ำมันเกียร์เสื่อมสภาพหรือแบริ่งสึก'], ['กระแสมอเตอร์เกินพิกัด', 'จากแผ่นกรองอากาศด้านดูดตันหรือโหลดเพิ่ม'], ['เสียงดังผิดปกติที่เฟือง/แบริ่ง', 'เพราะไม่ได้ตรวจและเติมน้ำมันตามรอบ']],
+      rows: [chk('ระดับและสภาพน้ำมันเกียร์', 'ป้องกันเฟือง/แบริ่งสึก', 'อยู่ระหว่างขีด H – L ไม่ขุ่น ไม่มีเศษโลหะ', '3M'),
+        chk('อุณหภูมิผิวเรือนเกียร์', 'ป้องกันเกียร์ไหม้', '< 70 °C', '3M', { cells: ba(null, 70, '°C') }),
+        chk('กระแสมอเตอร์เทียบค่าป้ายเครื่อง', 'ป้องกันมอเตอร์ทำงานเกินพิกัด', 'ไม่เกิน 100% ของค่าป้าย', '3M')] },
+    CFP: { draft: true, find: [['สารเคมีตกผลึกอุดตันที่ Ball Check Valve (ด้าน Suction/Discharge)', 'ส่งผลให้อัตราการจ่ายสารเคมีตกต่ำกว่าเป้าหมาย ปั๊มเดินตัวเปล่า'], ['หัวฉีดน้ำยา (Injection Point) เกิดคราบตะกรันอุดตัน', 'แรงดันต้านทานในท่อสูงเกินพิกัด ทำให้ท่อส่งบวมและข้อต่อแตกหัก'], ['แผ่นไดอะแฟรม (PTFE Diaphragm) ล้าตัวและฉีกขาด', 'จากการปรับ Stroke Length เกินพิกัดและการกัดกร่อนของสารเคมีเข้มข้น'], ['ข้อต่อ Fitting และซีล O-Ring เสื่อมสภาพ', 'สารเคมีรั่วซึมกัดกร่อนตัวเรือนปั๊มและเป็นอันตรายต่อผู้ปฏิบัติงาน']],
+      rows: [chk('อัตราจ่ายสารเคมีเทียบค่าตั้ง (Dosing rate)', 'ป้องกันจ่ายสารไม่ถึงเป้า', 'ต่างจากค่าตั้งไม่เกิน ± 10%', '3M'),
+        chk('แรงดันท่อด้าน Discharge ที่หัวฉีด', 'ป้องกันหัวฉีดตันและท่อแตก', 'ไม่เกินแรงดันใช้งานสูงสุดตามป้ายปั๊ม', '3M'),
+        chk('สภาพไดอะแฟรม ซีล O-Ring และ Stroke length', 'ป้องกันสารเคมีรั่ว', 'ไม่บวม ไม่ฉีก ไม่มีคราบรั่ว · Stroke ไม่เกินค่าผู้ผลิต', '3M')] },
+    HEX: { draft: true, find: [['ประสิทธิภาพแลกเปลี่ยนความร้อนลดลง', 'จากตะกรันเกาะแผ่นเพลท ทำให้น้ำ Process ออกร้อนกว่าเกณฑ์'], ['แรงดันตกคร่อม HEX สูง', 'จากตะกอนอุดตันช่องแผ่นเพลทและ Y-Strainer'], ['น้ำรั่วซึมที่ขอบปะเก็นเพลท', 'จากขันระยะสตัดไม่สม่ำเสมอหรือปะเก็นเสื่อม'], ['ประกอบเพลทผิดลำดับหลังล้าง', 'ทำให้รูปแบบการไหลเปลี่ยนและแลกเปลี่ยนความร้อนได้น้อยลง']],
+      rows: [chk('แรงดันตกคร่อม HEX ด้าน Process (ΔP เข้า – ออก)', 'จับการอุดตันของเพลท', 'ΔP ≤ 1.0 kg/cm²', '3M', { cells: ba(null, 1.0, 'kg/cm²') }),
+        chk('Approach temp. (น้ำออก Process – น้ำเข้า Chiller)', 'วัดประสิทธิภาพ HEX', '≤ 5 °C', '3M', { cells: [{ k: 'ap', l: 'Approach', u: '°C', max: 5 }] }),
+        chk('ความสม่ำเสมอของระยะสตัด D1 – D8', 'ป้องกันปะเก็นรั่ว', 'ต่างกันไม่เกิน 1 mm ทุกจุด', '3M')] },
+    VP: { draft: true, find: [['แรงดูดสุญญากาศไม่ถึงเกณฑ์ (Unload test)', 'จากน้ำมันปั๊มเสื่อมหรือมีน้ำปนเปื้อน'], ['ปั๊มร้อนเกิน', 'จากน้ำหล่อเย็นไหลน้อย เพราะ Y-Strainer / Flow meter ตัน'], ['น้ำมันรั่วซึม', 'จากซีลเพลาและปะเก็นเสื่อม'], ['สายพานหย่อน / ร่อง Pulley สึก', 'ทำให้รอบตก สั่นสะเทือนสูง']],
+      rows: [chk('สภาพน้ำมันปั๊ม (สี / น้ำปน / ระดับ)', 'ป้องกันแรงดูดตก', 'ใส ไม่ขุ่นเป็นสีน้ำนม ระดับ ½ Sight glass', '1M'),
+        chk('แนวโน้ม Unload test เทียบครั้งก่อน', 'จับการเสื่อมของปั๊มก่อนเสีย', '≤ -740 mmHg และแย่ลงไม่เกิน 10 mmHg', '1M'),
+        chk('อุณหภูมิเรือนปั๊ม', 'ป้องกันปั๊มร้อนจนติดตาย', '< 70 °C', '1M', { cells: ba(null, 70, '°C') })] },
+    WP: { draft: true, find: [['น้ำรั่วที่ Gland packing / Mechanical seal เกินเกณฑ์', 'จากแพ็กกิ้งเสื่อมและเพลาสึก น้ำเข้าแบริ่ง'], ['แบริ่งปั๊ม/มอเตอร์ร้อนและสั่นสูง', 'จากศูนย์เพลา (Alignment) คลาดเคลื่อนและลูกยางคัปปลิ้งสึก'], ['แรงดันตก ปั๊มกินลม (Cavitation)', 'จาก Y-Strainer / Foot valve อุดตัน'], ['มอเตอร์ร้อน ตัด Overload', 'จากแรงดันไฟไม่สมดุล (Vunb) สูง']],
+      rows: [chk('อัตรารั่วที่ Gland packing / Mechanical seal', 'ป้องกันน้ำเข้าแบริ่ง', 'Gland ≤ 5 หยด/นาที · Mechanical seal ต้องไม่รั่ว', '3M', { cells: ba(null, 5, 'หยด/นาที') }),
+        chk('ความคลาดศูนย์เพลา (Alignment)', 'ป้องกันแบริ่ง/คัปปลิ้งเสียหาย', 'ระยะห่าง 1.0 – 3.0 mm ±0.2 · เยื้องศูนย์ ≤ 0.01 mm', '3M'),
+        chk('แรงดันไฟไม่สมดุล (Vunb)', 'ป้องกันมอเตอร์ร้อน', '≤ 2%', '3M', { cells: [{ k: 'vunb', l: '%Vunb', u: '%', max: 2 }] })] },
+  };
+  const rrRows = (fid) => ((RR[fid] || {}).rows || []).map((row, i) => ({ id: `3.2.${i + 1}`, label: row.l, row }));
+  const PRANK = { '1M': 1, '3M': 2, '6M': 3, '1Y': 4 };
+  const rrNeeded = (f, row, h) => h.job !== 'pm' || PRANK[h.period] >= PRANK[row.per];
+  // Verdict of one 3.2 check from its own entries only: {st, sts? (per cell)}
+  function rrEval(row, inp) {
+    if (!row.cells) return { st: inp.r || '' };
+    const sts = Object.fromEntries(row.cells.map(c => { const n = num(inp[c.k]); return [c.k, isFinite(n) ? inRange(n, c.min, c.max) : '']; }));
+    if (sts.a) return { st: sts.a, sts };   // the after-work reading decides; before only shows where it started
+    const rank = { '': 0, ok: 1, watch: 2, ng: 3 };
+    return { st: Object.values(sts).reduce((w, s) => rank[s] > rank[w] ? s : w, ''), sts };
+  }
+
+  // =====================================================================
+  // Which items the chosen job / period / subtype needs
+  // =====================================================================
+  const parseId = (id) => id.split('.').map(Number);
+  function inRule(id, rule) {
+    if (rule === 'all') return true;
+    if (!rule) return false;
+    const [a, b] = parseId(id);
+    return rule.some(r => {
+      if (!r.includes('-')) return r === id;
+      const [from, to] = r.split('-').map(parseId);
+      return a === from[0] && b >= from[1] && b <= to[1];
+    });
+  }
+  function isNeeded(form, item, h) {
+    if (form.kind === 'daily') return true;
+    if (item.only && h.subtype && item.only !== h.subtype) return false;
+    if (item.type === 'vunb' && h.phase === '1') return false;
+    if (h.job === 'insp') return true;
+    if (h.job === 'repair') return inRule(item.id, form.rules.repair);
+    if (h.job === 'pm' && h.period) return inRule(item.id, form.rules[h.period]);
+    return false;
+  }
+  const jobChosen = (form, h) => form.kind === 'daily' || h.job === 'insp' || h.job === 'repair' || (h.job === 'pm' && !!h.period);
+
+  // =====================================================================
+  // Cells per item type: rows of {k, l, u}
+  // =====================================================================
+  function rowsOf(item, h) {
+    const BA = (cellsFor) => item.ba === 'both'
+      ? [{ t: 'ก่อนทำงาน', c: cellsFor('b') }, { t: 'หลังทำงาน', c: cellsFor('a') }]
+      : [{ t: 'ค่าหลังทำงาน', slash: item.slash, c: cellsFor('a') }];
+    switch (item.type) {
+      case 'value':
+        if (item.ba === 'after') return [{ c: [{ k: 'a', l: 'ค่าที่วัด', u: item.unit }] }];
+        return [{ c: [{ k: 'b', l: 'ก่อนทำงาน', u: item.unit }, { k: 'a', l: 'หลังทำงาน', u: item.unit }] }];
+      case 'v3': {
+        const keys = h.phase === '1' ? ['L-N'] : ['RS', 'ST', 'RT', ...(item.rn ? ['RN'] : [])];
+        return BA(p => keys.map(k => ({ k: `${p}_${k}`, l: k, u: 'V' })));
+      }
+      case 'i3': {
+        const keys = h.phase === '1' ? ['I'] : ['R', 'S', 'T'];
+        return [{ t: 'RLA จากป้าย nameplate', c: [{ k: 'rla', l: 'RLA', u: 'A' }] }, ...BA(p => keys.map(k => ({ k: `${p}_${k}`, l: k, u: 'A' })))];
+      }
+      case 'ins': return [{ t: 'ค่าหลังทำงาน', c: ['U-G', 'V-G', 'W-G'].map(k => ({ k, l: k, u: 'MΩ' })) }];
+      case 'belt': return [{ t: 'ค่าหลังทำงาน', c: Array.from({ length: item.n }, (_, i) => ({ k: `l${i + 1}`, l: `เส้นที่ ${i + 1}`, u: 'kg' })) }];
+      case 'vibTemp': return Array.from({ length: item.n }, (_, i) => ({ t: `จุดที่ ${i + 1}`, c: [{ k: `v${i + 1}`, l: 'Vibration', u: 'mm/s' }, { k: `t${i + 1}`, l: 'Temp', u: '°C' }] }));
+      case 'grid': return ['b', 'a'].flatMap(p => [1, 2, 3, 4].map(r => ({ t: r === 1 ? (p === 'b' ? 'ก่อนทำงาน · จุด 1–4 × 1–4' : 'หลังทำงาน · จุด 1–4 × 1–4') : '', grid: true, c: [1, 2, 3, 4].map(c => ({ k: `${p}${r}${c}`, l: `${r}-${c}`, u: '' })) })));
+      case 'refr': return [{ t: 'ค่าหลังทำงาน', c: [{ k: 'lo', l: 'Low', u: 'psi' }, { k: 'hi', l: 'High', u: 'psi' }] }];
+      case 'pair': return [{ t: 'ค่าหลังทำงาน', c: item.labels.map((l, i) => ({ k: `p${i + 1}`, l, u: item.unit })) }];
+      case 'dosing': return [10, 20, 30, 40, 50].map(ml => ({ t: `${ml} ml`, c: [{ k: `t1_${ml}`, l: 'ครั้งที่ 1', u: 's' }, { k: `t2_${ml}`, l: 'ครั้งที่ 2', u: 's' }] }));
+      case 'align': return [
+        { t: 'ระยะห่างหน้าคัปปลิ้ง · Std 1.0–3.0 mm ±0.2', grid: true, c: ['บน', 'ล่าง', 'ซ้าย', 'ขวา'].map((l, i) => ({ k: `g${i}`, l, u: 'mm' })) },
+        { t: 'เยื้องศูนย์ · Std 0 mm ±0.01', grid: true, c: ['บน', 'ล่าง', 'ซ้าย', 'ขวา'].map((l, i) => ({ k: `o${i}`, l, u: 'mm', neg: true })) }];
+      default: return [];
+    }
+  }
+  const cellsOf = (item, h) => rowsOf(item, h).flatMap(r => r.c);
+
+  // =====================================================================
+  // Judging: '' (no rule / empty), 'ok', 'watch', 'ng'
+  // =====================================================================
+  const inRange = (n, min, max) => ((min !== null && min !== undefined && n < min) || (max !== null && max !== undefined && n > max)) ? 'ng' : 'ok';
+  function isoStatus(n, h) {
+    const lim = ISO[h.vclass];
+    if (!lim) return '';
+    return n <= lim[1] ? 'ok' : n <= lim[2] ? 'watch' : 'ng';
+  }
+  function judge(item, key, raw, vals, h) {
+    const n = num(raw);
+    if (!isFinite(n)) return '';
+    switch (item.type) {
+      case 'value':
+        if (item.judge === 'iso') return isoStatus(n, h);
+        if (item.judge === 'refT') { const r = REFR[h.refr]; return r ? inRange(n, ...r.sT) : ''; }
+        if (item.judge === 'vpflow') return '';
+        if (item.min == null && item.max == null) return '';
+        return inRange(n, item.min, item.max);
+      case 'v3': { const nom = /RN|L-N/.test(key) ? 230 : 400; return Math.abs(n - nom) <= nom * item.tol / 100 ? 'ok' : 'ng'; }
+      case 'i3': { if (key === 'rla') return ''; const rla = num(vals.rla); return isFinite(rla) && rla > 0 ? (n <= rla * 1.15 ? 'ok' : 'ng') : ''; }
+      case 'ins': return n > 0.5 ? 'ok' : 'ng';
+      case 'vibTemp': return key.startsWith('v') ? isoStatus(n, h) : '';
+      case 'refr': { const r = REFR[h.refr]; if (!r) return ''; return inRange(n, ...(key === 'lo' ? r.sP : r.dP)); }
+      case 'pair': return inRange(n, item.min, item.max);
+      default: return '';
+    }
+  }
+
+  function computed(item, vals, h, allVals) {
+    const avg = (arr) => { const ns = arr.map(num).filter(isFinite); return ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : NaN; };
+    if (item.type === 'grid') {
+      return ['b', 'a'].map(p => {
+        const a = avg([1, 2, 3, 4].flatMap(r => [1, 2, 3, 4].map(c => vals[`${p}${r}${c}`])));
+        return { k: `${p}_avg`, l: p === 'b' ? 'เฉลี่ยก่อน' : 'เฉลี่ยหลัง', v: a, u: item.unit, st: isFinite(a) ? inRange(a, item.min, item.max) : '' };
+      });
+    }
+    if (item.type === 'dosing') {
+      const times = [10, 20, 30, 40, 50].flatMap(ml => [vals[`t1_${ml}`], vals[`t2_${ml}`]]);
+      const rates = [10, 20, 30, 40, 50].map(ml => { const t = avg([vals[`t1_${ml}`], vals[`t2_${ml}`]]); return isFinite(t) && t > 0 ? ml / t * 60 : NaN; });
+      return [{ k: 'avgTime', l: 'Avg. Time', v: avg(times), u: 's' }, { k: 'avgDosing', l: 'Avg. Dosing', v: avg(rates), u: 'ml/min' }];
+    }
+    if (item.type === 'vunb') {
+      const src = allVals[item.from] || {};
+      const pick = (k) => isFinite(num(src[`a_${k}`])) ? num(src[`a_${k}`]) : num(src[`b_${k}`]);
+      const vs = ['RS', 'ST', 'RT'].map(pick);
+      if (vs.some(v => !isFinite(v))) return [{ k: 'vavg', l: 'Vavg', v: NaN, u: 'V' }, { k: 'vunb', l: '%Vunb', v: NaN, u: '%' }, { k: 'tinc', l: 'Temp inc', v: NaN, u: '%' }];
+      const vavg = (vs[0] + vs[1] + vs[2]) / 3;
+      const vunb = 100 * Math.max(...vs.map(v => Math.abs(v - vavg))) / vavg;
+      const tinc = 2 * vunb * vunb;   // the curve on the sheet: 1% → 2%, 2% → 8%, 3% → 18% … = 2 × Vunb²
+      return [{ k: 'vavg', l: 'Vavg', v: vavg, u: 'V' }, { k: 'vunb', l: '%Vunb', v: vunb, u: '%', st: vunb <= 1 ? 'ok' : vunb <= 5 ? 'watch' : 'ng' }, { k: 'tinc', l: 'Temp inc', v: tinc, u: '%' }];
+    }
+    return [];
+  }
+
+  function specText(item, h) {
+    if (item.type === 'v3') return `±${item.tol}% ของ Std.${h.phase === '1' ? ' (230 V)' : item.rn ? ' (400 V · RN 230 V)' : ' (400 V)'}`;
+    if (item.type === 'refr') { const r = REFR[h.refr]; return r ? `Low ${r.sP.join('–')} · High ${r.dP.join('–')} psi (${h.refr})` : 'เลือกชนิดน้ำยาในข้อมูลเครื่องก่อน'; }
+    if (item.judge === 'refT') { const r = REFR[h.refr]; return r ? `${r.sT.join(' – ')} °C (${h.refr})` : 'เลือกชนิดน้ำยาในข้อมูลเครื่องก่อน'; }
+    if (item.judge === 'vpflow') { const f = VP_FLOW[h.vpModel]; return f ? `${f[0]} l/min ตามตาราง 4 (${h.vpModel})` : 'เลือกรุ่นปั๊มในข้อมูลเครื่องก่อน'; }
+    if (item.judge === 'iso' || item.type === 'vibTemp') return h.vclass ? `ISO 10816 Class ${h.vclass} · ผ่าน ≤ ${ISO[h.vclass][1]} mm/s` : 'เลือก Class เครื่องในข้อมูลเครื่องก่อน';
+    if (item.type === 'grid') return `เฉลี่ย ${item.min} – ${item.max} m/s`;
+    if (item.type === 'dosing') return 'ตามที่กำหนด';
+    if (item.type === 'vunb') return 'คำนวณให้อัตโนมัติ · มอเตอร์ 1 เฟสไม่ต้องทำ';
+    if (item.spec) return item.spec;
+    if (item.min != null && item.max != null) return `${item.min} – ${item.max} ${item.unit || ''}`;
+    if (item.min != null) return `≥ ${item.min} ${item.unit || ''}`;
+    if (item.max != null) return `≤ ${item.max} ${item.unit || ''}`;
+    return '';
+  }
+
+  // Worst verdict of an item: drives the pill beside its title
+  function itemStatus(item, vals, h) {
+    let worst = '', rank = { '': 0, ok: 1, watch: 2, ng: 3 };
+    const take = (s) => { if (rank[s] > rank[worst]) worst = s; };
+    if (item.type === 'ok') take(vals.v === 'ผิดปกติ' ? 'ng' : vals.v ? 'ok' : '');
+    cellsOf(item, h).forEach(c => take(judge(item, c.k, vals[c.k], vals, h)));
+    computed(item, vals, h, S ? S.v : {}).forEach(c => take(c.st || ''));
+    return worst;
+  }
+  const pillHtml = (st) => st ? `${VERDICT[st].g} ${VERDICT[st].w}` : '';
+
+  // =====================================================================
+  // State
+  // =====================================================================
+  let form = null;
+  let S = null;
+  const draftKey = (id) => `insp.draft.${id}`;
+  const HIST = 'insp.records';
+
+  function blankState(f) {
+    const last = store.get('insp.last', {});
+    return {
+      h: { machine: '', factory: last.factory || '', date: todayIso(), time: nowHm(), subtype: f.subtypes && f.subtypes.length === 1 ? f.subtypes[0] : '',
+           job: f.kind === 'daily' ? 'daily' : '', period: '', models: {}, panel: '', phase: '3', vclass: '', refr: '', vpModel: '',
+           pumpState: '', valveState: '', inspector: last.inspector || '', comment: '' },
+      v: {}, t: {}, tn: {}, rr: {}, autoWhy: '', showAll: false
+    };
+  }
+  const editKey = (id) => `insp.edit.${id}`;
+  // Typing is kept as it goes: a new entry under its form, an edit under the result it changes
+  const curKey = () => S.editId ? editKey(S.editId) : draftKey(form.id);
+  function saveDraft() { if (form) store.set(curKey(), S); }
+
+  const MACHINE_FIELDS = ['factory', 'subtype', 'models', 'panel', 'phase', 'vclass', 'refr', 'vpModel'];
+  function rememberMachine() {
+    const m = S.h.machine.trim().toUpperCase();
+    if (!m) return;
+    const all = store.get('insp.machines', {});
+    all[`${form.id}|${m}`] = Object.fromEntries(MACHINE_FIELDS.map(k => [k, S.h[k]]));
+    store.set('insp.machines', all);
+  }
+  // Auto PM round from this machine's saved PM history: the biggest round whose interval has passed.
+  // A bigger round covers the smaller ones (a 1Y job does everything a 3M job does).
+  const PERIOD_DAYS = { '1M': 30, '3M': 91, '6M': 182, '1Y': 365 };
+  const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+  function duePeriod(h) {
+    const m = h.machine.trim().toUpperCase();
+    if (!m) return null;
+    const pms = store.get(HIST, []).filter(r => r.form === form.id && r.h.machine === m && r.h.job === 'pm' && PRANK[r.h.period]);
+    if (!pms.length) return { period: '', why: 'ยังไม่มีประวัติ PM ของเครื่องนี้ในมือถือเครื่องนี้ เลือกรอบเองครั้งแรก' };
+    const first = pms[pms.length - 1].h.date;   // history is newest first
+    const st = form.periods.map(p => {
+      const r = pms.find(x => PRANK[x.h.period] >= PRANK[p]);
+      const d = daysBetween(r ? r.h.date : first, h.date);
+      return { p, r, d, left: PERIOD_DAYS[p] - d };
+    });
+    const due = st.filter(s => s.left <= 0).pop();
+    if (due) return { period: due.p, why: `ถึงรอบ ${due.p} · ${due.r ? `ทำรอบ ${due.r.h.period} ล่าสุด ${due.r.h.date}` : `ไม่มีรอบ ${due.p} ตั้งแต่ ${first}`} (${due.d} วัน)` };
+    const next = st.slice().sort((a, b) => a.left - b.left)[0];
+    return { period: '', why: `ยังไม่ถึงรอบ PM · รอบ ${next.p} ครบในอีก ${next.left} วัน` };
+  }
+  function autoPeriod() {
+    if (form.kind !== 'pm' || (S.h.job && !S.autoWhy)) return false;   // never override a job the inspector picked
+    const d = duePeriod(S.h);
+    if (!d) return false;
+    if (d.period) { S.h.job = 'pm'; S.h.period = d.period; }
+    else if (S.autoWhy) { S.h.job = ''; S.h.period = ''; }   // an earlier auto pick no longer applies
+    S.autoWhy = d.why;
+    return true;
+  }
+
+  function recallMachine() {
+    const m = S.h.machine.trim().toUpperCase();
+    const rec = store.get('insp.machines', {})[`${form.id}|${m}`];
+    if (!rec) return false;
+    MACHINE_FIELDS.forEach(k => { if (rec[k] !== undefined && rec[k] !== '') S.h[k] = rec[k]; });
+    return true;
+  }
+
+  // =====================================================================
+  // Chrome
+  // =====================================================================
+  function setNav(title, sub, back, backLabel = 'เครื่อง') {
+    $('title').innerHTML = title ? `${esc(title)}${sub ? `<small>${esc(sub)}</small>` : ''}` : '';
+    $('back').hidden = !back;
+    $('back').querySelector('span').textContent = backLabel;
+    $('navProg').textContent = '';
+    document.querySelector('.nav').classList.toggle('bare', !title && !back);
+    document.querySelector('.nav').classList.remove('home');
+  }
+  function setFormChrome(on) { $('prog').hidden = !on; $('toolbar').hidden = !on; $('jumpbar').hidden = !on; }
+
+  // Section bar: one button per part of the form; the part under the bar is lit while scrolling
+  function buildJumpbar() {
+    const secs = [...document.querySelectorAll('#app section[data-sec]')];
+    $('jumpbar').innerHTML = secs.map((s, i) => `<button type="button" data-sec-i="${i}">${esc(s.dataset.sec)}</button>`).join('');
+    markJumpbar();
+  }
+  function markJumpbar() {
+    const bar = $('jumpbar');
+    if (bar.hidden) return;
+    const top = bar.getBoundingClientRect().bottom + 12;
+    const secs = [...document.querySelectorAll('#app section[data-sec]')];
+    let cur = 0;
+    secs.forEach((s, i) => { if (s.getBoundingClientRect().top <= top) cur = i; });
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = secs.length - 1;   // bottom reached
+    bar.querySelectorAll('button').forEach((b, i) => {
+      const on = i === cur;
+      if (on && !b.classList.contains('on')) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      b.classList.toggle('on', on);
+    });
+  }
+  $('jumpbar').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-sec-i]');
+    if (b) document.querySelectorAll('#app section[data-sec]')[+b.dataset.secI]?.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
+  });
+  window.addEventListener('scroll', () => requestAnimationFrame(markJumpbar), { passive: true });
+
+  // Enter on a field moves to the next field (skips sections not in this round); textareas keep their new lines
+  function nextField(el) {
+    const all = [...document.querySelectorAll('#app input:not([type="radio"]):not([type="checkbox"]), #app select, #app textarea')]
+      .filter(x => x.offsetParent !== null && !x.closest('.off'));
+    return all[all.indexOf(el) + 1];
+  }
+
+  // =====================================================================
+  // Home
+  // =====================================================================
+  function showHome() {
+    form = null; S = null;
+    setNav('Inspection', '', false); setFormChrome(false);   // home title sits in the frosted bar, iOS-style
+    document.querySelector('.nav').classList.add('home');
+    const row = (f) => {
+      const draft = store.get(draftKey(f.id), null);
+      return `<button type="button" class="row nrow" data-form="${f.id}">
+        ${machIcon(f.id)}
+        <span class="main"><b>${esc(f.name)}</b><small>${esc(f.th)}</small></span>
+        ${draft ? '<span class="trail draft">ร่างค้าง</span>' : ''}<span class="mcode">${esc(f.id)}</span>${CHEV}
+      </button>`;
+    };
+    const count = store.get(HIST, []).length;
+    $('app').innerHTML = `
+      <section class="group">
+        <div class="card">${FORMS.filter(f => f.kind === 'pm').map(row).join('')}</div></section>
+      <section class="group"><h2 class="group-h">ตรวจรายวัน</h2>
+        <div class="card">${FORMS.filter(f => f.kind === 'daily').map(row).join('')}</div></section>
+      <section class="group"><div class="card">
+        <button type="button" class="row nrow" id="goHist"><span class="main"><b>ผลตรวจที่บันทึกไว้</b><small>เก็บในมือถือเครื่องนี้ · ดาวน์โหลด CSV ได้</small></span><span class="trail num">${count}</span>${CHEV}</button>
+      </div></section>`;
+    $('app').querySelectorAll('[data-form]').forEach(b => b.addEventListener('click', () => { location.hash = `#/f/${b.dataset.form}`; }));
+    $('goHist').addEventListener('click', () => { location.hash = '#/history'; });
+    window.scrollTo(0, 0);
+  }
+
+  // =====================================================================
+  // Form
+  // =====================================================================
+  function openForm(id) {
+    form = formById(id);
+    if (!form) { location.hash = '#/'; return; }
+    S = store.get(draftKey(id), null) || blankState(form);
+    S.rr = S.rr || {}; delete S.rv;   // drafts from before section 3 / from when it had a 3.3 list
+    setNav(`${form.id} · ${form.name}`, form.code, true); setFormChrome(true);
+    $('save').textContent = 'บันทึกผล';
+    renderForm();
+    window.scrollTo(0, 0);
+  }
+
+  // Edit a saved result in the same form; saving replaces it in place (same id, so its printout follows)
+  // fresh = start from the saved result; otherwise continue unsaved edits kept under insp.edit.<id>
+  function openEdit(id, fresh) {
+    const rec = store.get(HIST, []).find(r => r.id === id);
+    form = rec && formById(rec.form);
+    if (!form) { location.hash = '#/history'; return; }
+    if (fresh) store.del(editKey(id));
+    S = store.get(editKey(id), null);
+    if (!S) {
+      const v = JSON.parse(JSON.stringify(rec.v || {}));
+      const rr = Object.fromEntries(Object.entries(rec.rr || {}).map(([k, x]) => { const { st, ...rest } = x; return [k, rest]; }));
+      S = { h: { ...blankState(form).h, ...rec.h, models: { ...(rec.h.models || {}) } }, v, t: { ...rec.t }, tn: { ...rec.tn }, rr, autoWhy: '', showAll: false };
+    }
+    S.editId = id;
+    setNav(`แก้ไข ${form.id} · ${rec.h.machine}`, `${rec.h.date} ${rec.h.time || ''}`, true, 'ผลตรวจ'); setFormChrome(true);
+    $('save').textContent = 'บันทึกการแก้ไข';
+    renderForm();
+    window.scrollTo(0, 0);
+  }
+
+  const segHtml = (name, opts, cur, cls = '') => `<div class="seg ${cls}" role="radiogroup">${opts.map(o => {
+    const [v, l, sc] = Array.isArray(o) ? o : [o, o, ''];
+    return `<label><input type="radio" name="${name}" value="${esc(v)}"${cur === v ? ' checked' : ''}><span class="${sc}">${esc(l)}</span></label>`;
+  }).join('')}</div>`;
+  const inputRow = (label, attrs, value, ph = '') => `<label class="row"><span class="row-label">${label}</span><input class="row-input" ${attrs} value="${esc(value)}" placeholder="${esc(ph)}" autocomplete="off"></label>`;
+
+  function headerHtml() {
+    const h = S.h, f = form;
+    const hasElec = f.m.some(i => i.type === 'v3' || i.type === 'i3');
+    const hasVib = f.m.some(i => i.judge === 'iso' || i.type === 'vibTemp');
+    let html = `<section class="group" data-sec="ข้อมูล"><h2 class="group-h">การตรวจครั้งนี้</h2><div class="card">
+      ${inputRow(f.kind === 'daily' ? `${esc(f.name)} No.` : 'หมายเลขเครื่อง', 'class="row-input code" data-h="machine" spellcheck="false" autocapitalize="characters"', h.machine, 'แตะเพื่อกรอก')}
+      <label class="row"><span class="row-label">โรงงาน</span><select class="row-input" data-h="factory"><option value="">เลือก</option>${(h.factory && !FACTORIES.includes(h.factory) ? [h.factory, ...FACTORIES] : FACTORIES).map(x => `<option${x === h.factory ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+      ${inputRow('วันที่', 'type="date" data-h="date"', h.date)}
+      ${inputRow('เวลา', 'type="time" data-h="time"', h.time)}
+      ${inputRow('ผู้ตรวจ', 'data-h="inspector" maxlength="40"', h.inspector, 'ชื่อ')}`;
+    if (f.subtypes && f.subtypes.length > 1) html += `<div class="stack" data-need="subtype"><span class="stack-label">ชนิดเครื่อง</span>${segHtml('h_subtype', f.subtypes, h.subtype)}</div>`;
+    if (f.kind === 'pm') {
+      html += `<div class="stack" data-need="job"><span class="stack-label">ประเภทงาน</span>${segHtml('h_job', [['pm', 'PM'], ['repair', 'งานซ่อม'], ['insp', 'Inspection']], h.job)}</div>`;
+      if (h.job === 'pm') html += `<div class="stack" data-need="period"><span class="stack-label">รอบ PM ${f.note1M ? `<em>· ${esc(f.note1M)}</em>` : ''}</span>${segHtml('h_period', f.periods, h.period)}</div>`;
+      if (S.autoWhy) html += `<p class="auto-why"><span class="auto-tag">อัตโนมัติ</span> ${esc(S.autoWhy)}</p>`;
+    }
+    html += `</div></section>`;
+
+    if (f.kind === 'pm') {
+      html += `<section class="group"><h2 class="group-h">ข้อมูลเครื่อง</h2><div class="card">`;
+      html += f.models.map(m => `<label class="row"><span class="row-label">Model ${esc(m)}</span><input class="row-input" data-hm="${esc(m)}" value="${esc(h.models[m] || '')}" placeholder="ไม่บังคับ" autocomplete="off"></label>`).join('');
+      if (f.panel) html += inputRow('ตู้ไฟฟ้า', 'class="row-input code" data-h="panel"', h.panel, 'ไม่บังคับ');
+      if (hasVib) html += `<label class="row"><span class="row-label">Class เครื่อง</span><select class="row-input" data-h="vclass"><option value="">เลือก</option>${CLASSES.map(([c, l]) => `<option value="${c}"${h.vclass === c ? ' selected' : ''}>${l}</option>`).join('')}</select></label>`;
+      if (f.vpModel) html += `<label class="row"><span class="row-label">รุ่นปั๊ม</span><select class="row-input" data-h="vpModel"><option value="">เลือก</option>${Object.keys(VP_FLOW).map(m => `<option${h.vpModel === m ? ' selected' : ''}>${m}</option>`).join('')}</select></label>`;
+      if (hasElec) html += `<div class="stack"><span class="stack-label">ไฟเข้า</span>${segHtml('h_phase', [['3', '3 เฟส'], ['1', '1 เฟส']], h.phase)}</div>`;
+      if (f.refr) html += `<div class="stack"><span class="stack-label">ชนิดน้ำยา</span>${segHtml('h_refr', Object.keys(REFR), h.refr)}</div>`;
+      if (f.pumpState) html += `<div class="stack"><span class="stack-label">สถานะปั๊ม</span>${segHtml('h_pumpState', ['เปิด', 'ปิด'], h.pumpState)}</div>
+        <div class="stack"><span class="stack-label">วาล์วขาออกปั๊ม</span>${segHtml('h_valveState', ['เปิด', 'ปิด'], h.valveState)}</div>`;
+      html += `</div><p class="group-f">ระบบจำข้อมูลนี้ไว้ตามหมายเลขเครื่อง ครั้งหน้ากรอกเลขเครื่องแล้วเติมให้เอง</p></section>`;
+    }
+    return html;
+  }
+
+  function cellHtml(item, c, vals) {
+    const st = judge(item, c.k, vals[c.k], vals, S.h);
+    const neg = item.neg || c.neg;
+    return `<label class="cell" data-st="${st}">
+      <span class="cell-top"><span${/^(ก่อน|หลัง)ทำงาน$/.test(c.l) ? ` class="ba ${c.l[0] === 'ก' ? 'pre' : 'post'}"` : ''}>${esc(c.l)}</span><i class="mark" aria-hidden="true">${st ? VERDICT[st].g : ''}</i></span>
+      <span class="box"><input data-it="${esc(item.id)}" data-k="${esc(c.k)}" value="${esc(vals[c.k] || '')}" inputmode="${neg ? 'text' : 'decimal'}" enterkeyhint="next" autocomplete="off" aria-label="${esc(item.label)} ${esc(c.l)}" aria-describedby="sp-${esc(item.id)}">${c.u ? `<em>${esc(c.u)}</em>` : ''}</span>
+    </label>`;
+  }
+
+  function itemHtml(item, needed) {
+    const h = S.h, vals = S.v[item.id] || {};
+    const spec = specText(item, h);
+    const st = itemStatus(item, vals, h);
+    const head = `<div class="it-head">
+      <span class="it-no">${form.kind === 'daily' ? '' : esc(item.id)}</span>
+      <div class="it-text"><div class="it-title">${esc(item.label)}</div>
+        ${spec ? `<div class="spec" id="sp-${esc(item.id)}"><span>ค่ากำหนดเฉพาะ</span><b>${esc(spec)}</b></div>` : ''}
+        <div class="it-spec">${[esc(item.tool || ''), item.only ? `เฉพาะ ${esc(item.only)}` : '', esc(item.note || ''), needed ? '' : 'ไม่อยู่ในรอบนี้'].filter(Boolean).join(' · ')}</div></div>
+      <span class="pill ${st}" data-pill="${esc(item.id)}">${pillHtml(st)}</span></div>`;
+    let body = '';
+    if (item.type === 'ok') {
+      body = `<div class="it-row">${segHtml(`c_${item.id}`, [['ปกติ', '✓ ปกติ', 'ok'], ['ผิดปกติ', '✕ ผิดปกติ', 'ng']], vals.v, 'verdict')}</div>`;
+    } else if (item.type === 'choice') {
+      body = `<div class="it-row">${segHtml(`c_${item.id}`, item.options, vals.v)}</div>`;
+    } else if (item.type !== 'vunb') {
+      body = rowsOf(item, h).map(r => `<div class="it-row">${r.t ? `<b class="ba ${/ก่อน/.test(r.t) ? 'pre' : 'post'}">${esc(r.t)}</b>` : ''}<div class="cells${r.grid ? ' c4' : ''}${r.slash && r.c.length > 1 ? ' slash' : ''}">${r.c.map(c => cellHtml(item, c, vals)).join('')}</div></div>`).join('');
+    }
+    const calc = computed(item, vals, h, S.v);
+    const calcHtml = calc.length ? `<div class="calc" data-calc="${esc(item.id)}">${calcInner(calc)}</div>` : '';
+    const extra = item.type === 'dosing' ? '<p class="hint">จับเวลา 2 ครั้งต่อปริมาณ · Avg. Dosing = ปริมาณ ÷ เวลาเฉลี่ย × 60</p>'
+      : item.type === 'vunb' ? '<p class="hint">ใช้แรงดัน RS / ST / RT ของข้อ 1.1 (ค่าหลังทำงาน ถ้าไม่มีใช้ค่าก่อน) · Temp inc = 2 × Vunb² ตามกราฟในฟอร์ม</p>' : '';
+    return `<div class="item${needed ? '' : ' off'}" data-item="${esc(item.id)}" data-st="${st}">${head}${figHtml(item)}${body}${calcHtml}${extra}${item.ref ? REF_HTML[item.ref]() : ''}</div>`;
+  }
+
+  // First item that uses a diagram shows it; later items get a one-line link to the same picture
+  let shownFigs = new Map();
+  function figHtml(item) {
+    const f = item.fig && FIGS[item.fig];
+    if (!f) return '';
+    if (shownFigs.has(item.fig)) return `<button type="button" class="fig-link" data-fig="${item.fig}" aria-label="ดูรูป: ${esc(f.cap)}">ดูรูปประกอบ (รูปเดียวกับข้อ ${esc(shownFigs.get(item.fig))})</button>`;
+    shownFigs.set(item.fig, item.id);
+    const img = `<img src="${f.src}" alt="${esc(f.cap)}" loading="lazy" decoding="async" onerror="this.closest('.fig').hidden=true">`;
+    // With point boxes the picture sits in a frame of its own aspect ratio, so the markers land on the drawing
+    const pic = f.pts ? `<span class="fig-pic" style="--ar:${f.ar}">${img}${Object.entries(f.pts).map(([n, [x, y, w, h]]) =>
+      `<i class="fig-pt" data-pt="${n}" style="left:${x * 100}%;top:${y * 100}%;width:${(w + 0.02) * 100}%;height:${(h + 0.03) * 100}%"></i>`).join('')}</span>` : img;
+    return `<button type="button" class="fig" data-fig="${item.fig}" aria-label="ขยายรูป: ${esc(f.cap)}">
+      ${pic}
+      <span>${esc(f.cap)} <b>แตะเพื่อขยาย</b></span></button>`;
+  }
+
+  // Full-screen viewer: pinch to zoom, close with the button, Esc or a tap on the dark area
+  function openFig(key, opener) {
+    const f = FIGS[key];
+    $('sheetHost').innerHTML = `<div class="viewer" role="dialog" aria-modal="true" aria-label="${esc(f.cap)}" id="vw">
+      <div class="viewer-bar"><span>${esc(f.cap)}</span><button type="button" id="vwClose">เสร็จ</button></div>
+      <div class="viewer-body" id="vwBody"><img src="${f.src}" alt="${esc(f.cap)}"></div></div>`;
+    const close = () => { $('sheetHost').innerHTML = ''; document.removeEventListener('keydown', onKey); opener && opener.focus({ preventScroll: true }); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    $('vwClose').addEventListener('click', close);
+    $('vwBody').addEventListener('click', (e) => { if (e.target.id === 'vwBody') close(); });
+    $('vwClose').focus();
+  }
+  const calcInner = (calc) => calc.map(c => `<span class="${c.st || ''}">${esc(c.l)} <b>${fmt(c.v)}</b> ${esc(c.u)}${c.st ? ` ${VERDICT[c.st].g}` : ''}</span>`).join('');
+
+  function taskHtml(t, needed) {
+    const st = S.t[t.id] || '';
+    return `<div class="task${needed ? '' : ' off'}" data-task="${esc(t.id)}">
+      <div class="it-head"><span class="it-no">${esc(t.id)}</span><div class="it-text"><div class="it-title">${esc(t.label)}</div>${needed ? '' : '<div class="it-spec">ไม่อยู่ในรอบนี้</div>'}</div></div>
+      ${segHtml(`t_${t.id}`, [['done', '✓ เสร็จ', 'done'], ['notdone', '✕ ไม่เสร็จ', 'notdone'], ['skip', '– ไม่ได้ทำ', 'skip']], st)}
+      <textarea class="note" data-tn="${esc(t.id)}" placeholder="เหตุผล / สิ่งที่พบ (จำเป็น)" aria-label="เหตุผลที่ข้อ ${esc(t.id)} ไม่เสร็จ" ${st === 'notdone' ? '' : 'hidden'}>${esc(S.tn[t.id] || '')}</textarea>
+    </div>`;
+  }
+
+  // Section 3: what kept breaking on this system (3.1, read-only) and the extra checks that guard against it (3.2)
+  function rrRowHtml({ id, row }) {
+    const inp = S.rr[id] || {}, e = rrEval(row, inp), needed = rrNeeded(form, row, S.h);
+    const cells = row.cells ? `<div class="it-row"><div class="cells">${row.cells.map(c => {
+      const st = (e.sts || {})[c.k] || '';
+      return `<label class="cell" data-st="${st}"><span class="cell-top"><span>${esc(c.l)}</span><i class="mark" aria-hidden="true">${st ? VERDICT[st].g : ''}</i></span>
+        <span class="box"><input data-rr="${id}" data-k="${c.k}" value="${esc(inp[c.k] || '')}" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="${esc(row.l)} ${esc(c.l)}">${c.u ? `<em>${esc(c.u)}</em>` : ''}</span></label>`;
+    }).join('')}</div></div>` : `<div class="it-row">${segHtml(`r_${id}`, [['ok', '✓ ปกติ', 'ok'], ['ng', '✕ ผิดปกติ', 'ng']], inp.r, 'verdict')}</div>`;
+    return `<div class="item rr${needed ? '' : ' off'}" data-rr-item="${id}" data-st="${e.st}">
+      <div class="it-head"><span class="it-no">${id}</span><div class="it-text"><div class="it-title">${esc(row.l)}</div>
+        <div class="spec"><span>เกณฑ์</span><b>${esc(row.lim)}</b></div>
+        <div class="it-spec">${[esc(row.why), `แนะนำรอบ ${esc(row.per)}`, needed ? '' : 'ไม่อยู่ในรอบนี้'].filter(Boolean).join(' · ')}</div></div>
+        <span class="pill ${e.st}" data-rrpill>${pillHtml(e.st)}</span></div>
+      ${cells}
+      <textarea class="note" data-rr="${id}" data-k="n" maxlength="300" placeholder="หมายเหตุ / Action (ไม่บังคับ)" aria-label="หมายเหตุข้อ ${id}">${esc(inp.n || '')}</textarea>
+    </div>`;
+  }
+  // Re-judge one 3.2 check in place after its own entry changes
+  function refreshRR(id) {
+    const x = rrRows(form.id).find(r => r.id === id), box = x && document.querySelector(`[data-rr-item="${CSS.escape(id)}"]`);
+    if (!box) return;
+    const e = rrEval(x.row, S.rr[id] || {});
+    box.dataset.st = e.st;
+    const pill = box.querySelector('[data-rrpill]');
+    pill.className = `pill ${e.st}`; pill.textContent = pillHtml(e.st);
+    box.querySelectorAll('input[data-rr]').forEach(i => {
+      const s = (e.sts || {})[i.dataset.k];
+      if (s === undefined) return;
+      const cell = i.closest('.cell'); cell.dataset.st = s; cell.querySelector('.mark').textContent = s ? VERDICT[s].g : '';
+    });
+  }
+
+  // Section 3: advice, not inspection. 3.1 what kept breaking on this system, 3.2 checks worth adding; all optional
+  function rrHtml() {
+    const rr = RR[form.id];
+    if (!rr) return '';
+    const list = rrRows(form.id), shown = list.filter(x => S.showAll || rrNeeded(form, x.row, S.h));
+    return `<section class="group" data-sec="3 Review"><h2 class="group-h"><span>3 · Review-Revise</span><span class="num">แนะนำ · ไม่บังคับ</span></h2>
+      <div class="card">
+        <div class="stack rr-find"><p class="hint" style="margin:0 0 4px">ข้อแนะนำจากประวัติเครื่องเสีย ไม่นับรวมในผลตรวจ เว้นว่างแล้วบันทึกได้</p>
+          <details class="ref"><summary>3.1 ผลทบทวนประวัติเสียเรื้อรัง (${rr.find.length})</summary>
+          <ul>${rr.find.map(([b, t]) => `<li><b>${esc(b)}</b> ${esc(t)}</li>`).join('')}</ul></details>
+          ${rr.draft ? '<p class="hint">เนื้อหาหัวข้อนี้เป็นร่าง รอวิศวกรทบทวน</p>' : ''}</div>
+        <div class="stack"><span class="stack-label">3.2 เกณฑ์ตรวจพิเศษที่แนะนำ</span></div>
+        ${shown.length ? shown.map(rrRowHtml).join('') : '<p class="empty">รอบนี้ไม่มีเกณฑ์พิเศษที่แนะนำ</p>'}</div></section>`;
+  }
+
+  function renderForm() {
+    const h = S.h;
+    shownFigs = new Map();
+    let html = headerHtml();
+    if (!jobChosen(form, h)) {
+      html += `<section class="group"><div class="card"><p class="empty">เลือกประเภทงาน${form.kind === 'pm' ? 'และรอบ PM' : ''} แล้วหัวข้อที่ต้องทำในรอบนั้นจะขึ้นมาที่นี่</p></div></section>`;
+    } else {
+      const need = (x) => isNeeded(form, x, h);
+      const items = form.m.filter(i => S.showAll || need(i));
+      html += `<section class="group" data-sec="${form.kind === 'daily' ? 'รายการตรวจ' : '1 ค่าที่วัด'}"><h2 class="group-h"><span>${form.kind === 'daily' ? 'รายการตรวจ' : '1 · ค่าที่วัดได้'}</span><span class="num">${form.m.filter(need).length} ข้อ</span></h2>
+        <div class="card">${items.length ? items.map(i => itemHtml(i, need(i))).join('') : '<p class="empty">รอบนี้ไม่มีข้อที่ต้องวัด</p>'}</div></section>`;
+      if (form.t) {
+        const ts = form.t.filter(t => S.showAll || need(t));
+        html += `<section class="group" data-sec="2 งาน"><h2 class="group-h"><span>2 · หัวข้อตรวจเช็ค / ทำงาน</span><span class="num">${form.t.filter(need).length} ข้อ · ไม่บังคับ</span></h2>
+          <div class="card">${ts.length ? ts.map(t => taskHtml(t, need(t))).join('') : '<p class="empty">รอบนี้ไม่มีหัวข้องาน</p>'}</div></section>`;
+      }
+      const hidden = form.m.filter(i => !need(i)).length + (form.t ? form.t.filter(t => !need(t)).length : 0);
+      if (hidden > 0) html += `<button type="button" class="show-all" id="toggleAll">${S.showAll ? 'ซ่อนข้อที่ไม่อยู่ในรอบนี้' : `แสดงข้อที่ไม่อยู่ในรอบนี้ (${hidden})`}</button>`;
+      html += rrHtml();
+    }
+    html += `<section class="group" data-sec="หมายเหตุ"><h2 class="group-h">${form.kind === 'daily' ? 'หมายเหตุ (M/C Stop / Unload)' : 'Other Comment / Alarm Code'}</h2>
+      <div class="card"><textarea class="note" style="margin:0;border-radius:var(--r);background:var(--card)" data-h="comment" maxlength="500" placeholder="ไม่บังคับ" aria-label="หมายเหตุ">${esc(h.comment)}</textarea></div></section>
+      <div id="formErr" class="banner" role="alert" hidden></div>
+      <button type="button" class="btn-block reset" id="resetForm">ล้างค่าที่กรอกทั้งหมด</button>`;
+    $('app').innerHTML = html;
+    buildJumpbar();
+    updateTally();
+  }
+
+  // ---------- Tally (toolbar) ----------
+  function tally() {
+    const h = S.h;
+    let filled = 0, total = 0;
+    const ng = [], watch = [], notDone = [];
+    if (!jobChosen(form, h)) return { filled, total, ng, watch, notDone };
+    form.m.filter(i => isNeeded(form, i, h)).forEach(item => {
+      const vals = S.v[item.id] || {};
+      computed(item, vals, h, S.v).forEach(c => {
+        if (c.st === 'ng') ng.push({ item, l: c.l, v: fmt(c.v), u: c.u });
+        if (c.st === 'watch') watch.push({ item, l: c.l, v: fmt(c.v), u: c.u });
+      });
+      if (item.type === 'vunb') return;
+      if (item.type === 'choice' || item.type === 'ok') {
+        total++; if (vals.v) filled++;
+        if (item.type === 'ok' && vals.v === 'ผิดปกติ') ng.push({ item, l: '', v: 'ผิดปกติ' });
+        return;
+      }
+      cellsOf(item, h).forEach(c => {
+        if (c.k === 'rla') return;
+        total++;
+        if (String(vals[c.k] || '').trim() !== '') filled++;
+        const st = judge(item, c.k, vals[c.k], vals, h);
+        if (st === 'ng') ng.push({ item, l: c.l, v: vals[c.k], u: c.u });
+        if (st === 'watch') watch.push({ item, l: c.l, v: vals[c.k], u: c.u });
+      });
+    });
+    // Section 2 is optional: an unpicked task is neither counted as empty nor blocks the save
+    (form.t || []).filter(t => isNeeded(form, t, h)).forEach(t => { if (S.t[t.id] === 'notdone') notDone.push(t); });
+    return { filled, total, ng, watch, notDone };   // section 3 is advice: never counted here
+  }
+  function updateTally() {
+    const r = tally();
+    $('progFill').style.transform = `scaleX(${r.total ? r.filled / r.total : 0})`;
+    $('navProg').textContent = r.total ? `${r.filled}/${r.total}` : '';
+    const bad = r.ng.length + r.notDone.length;
+    $('tally').innerHTML = !r.total ? '<span class="chip plain">เลือกประเภทงานก่อน</span>'
+      : (bad ? `<button type="button" class="chip ng" data-jump="ng" aria-label="ไปที่ข้อที่ต้องแก้ ${bad} รายการ">✕ ${bad}</button>` : '')
+      + (r.watch.length ? `<button type="button" class="chip watch" data-jump="watch" aria-label="ไปที่ข้อเฝ้าระวัง ${r.watch.length} รายการ">! ${r.watch.length}</button>` : '')
+      + (r.filled < r.total ? `<button type="button" class="chip" data-jump="empty" aria-label="ไปที่ช่องที่ยังว่าง">เหลือ ${r.total - r.filled}</button>` : '<span class="chip plain">✓ กรอกครบ</span>');
+  }
+  // Toolbar chips jump to the next item that needs attention
+  function jump(kind) {
+    let el = null;
+    if (kind === 'ng') el = [...document.querySelectorAll('.item, .task')].find(x => x.dataset.st === 'ng' || (x.classList.contains('task') && x.querySelector('input[value="notdone"]:checked')));
+    if (kind === 'watch') el = document.querySelector('.item[data-st="watch"]');
+    if (kind === 'empty') {
+      const inp = [...document.querySelectorAll('.item:not(.off) input[data-it]')].find(i => !i.value.trim() && i.dataset.k !== 'rla');
+      el = inp ? inp.closest('.item') : document.querySelector('.item:not(.off) .seg:not(:has(input:checked))')?.closest('.item');
+      if (inp) { scrollToEl(el); setTimeout(() => inp.focus({ preventScroll: true }), reduceMotion() ? 0 : 350); return; }
+    }
+    scrollToEl(el);
+  }
+
+  // ---------- Input handling ----------
+  const RERENDER_H = ['subtype', 'job', 'period', 'phase', 'vclass', 'refr', 'vpModel'];
+  function refreshItem(item) {
+    const vals = S.v[item.id] || {};
+    document.querySelectorAll(`input[data-it="${CSS.escape(item.id)}"]`).forEach(inp => {
+      const st = judge(item, inp.dataset.k, vals[inp.dataset.k], vals, S.h);
+      const cell = inp.closest('.cell');
+      cell.dataset.st = st;
+      cell.querySelector('.mark').textContent = st ? VERDICT[st].g : '';
+    });
+    const box = document.querySelector(`[data-calc="${CSS.escape(item.id)}"]`);
+    if (box) box.innerHTML = calcInner(computed(item, vals, S.h, S.v));
+    const st = itemStatus(item, vals, S.h);
+    const pill = document.querySelector(`[data-pill="${CSS.escape(item.id)}"]`);
+    if (pill) { pill.className = `pill ${st}`; pill.textContent = pillHtml(st); }
+    const wrap = document.querySelector(`[data-item="${CSS.escape(item.id)}"]`);
+    if (wrap) wrap.dataset.st = st;
+  }
+  function onInput(e) {
+    const el = e.target;
+    if (!form || !S) return;
+    if (el.dataset.it) {
+      const id = el.dataset.it;
+      (S.v[id] = S.v[id] || {})[el.dataset.k] = el.value;
+      const item = form.m.find(i => i.id === id);
+      refreshItem(item);
+      form.m.filter(i => i.from === id).forEach(refreshItem);
+    } else if (el.dataset.h) {
+      S.h[el.dataset.h] = el.value;
+      const row = el.closest('.row'); if (row) row.classList.remove('is-invalid');
+      if (el.dataset.h === 'machine' && e.type === 'change') { const a = recallMachine(), b = autoPeriod(); if (a || b) renderForm(); }
+      else if (RERENDER_H.includes(el.dataset.h) && e.type === 'change') renderForm();
+    } else if (el.dataset.rr) {
+      (S.rr[el.dataset.rr] = S.rr[el.dataset.rr] || {})[el.dataset.k] = el.value;
+      refreshRR(el.dataset.rr);
+    } else if (el.dataset.hm) {
+      S.h.models[el.dataset.hm] = el.value;
+    } else if (el.dataset.tn) {
+      S.tn[el.dataset.tn] = el.value;
+      el.classList.remove('is-invalid');
+    } else if (el.name && el.type === 'radio' && e.type === 'change') {
+      if (el.name.startsWith('h_')) {
+        const key = el.name.slice(2);
+        S.h[key] = el.value;
+        if (key === 'job' && el.value !== 'pm') S.h.period = '';
+        if (key === 'job' || key === 'period') S.autoWhy = '';   // the inspector's own pick wins
+        renderForm();
+      } else if (el.name.startsWith('c_')) {
+        const id = el.name.slice(2);
+        (S.v[id] = S.v[id] || {}).v = el.value;
+        refreshItem(form.m.find(i => i.id === id));
+      } else if (el.name.startsWith('t_')) {
+        const id = el.name.slice(2);
+        S.t[id] = el.value;
+        const box = document.querySelector(`[data-task="${CSS.escape(id)}"]`);
+        const note = box.querySelector('textarea');
+        note.hidden = el.value !== 'notdone';
+        if (el.value === 'notdone' && !note.value) note.focus();
+      } else if (el.name.startsWith('r_')) {
+        const id = el.name.slice(2);
+        (S.rr[id] = S.rr[id] || {}).r = el.value;
+        refreshRR(id);
+      }
+    }
+    saveDraft();
+    updateTally();
+  }
+
+  // ---------- Save ----------
+  function save(force) {
+    const h = S.h, errs = [];
+    document.querySelectorAll('.is-invalid').forEach(x => x.classList.remove('is-invalid'));
+    const bad = (sel, msg) => { const el = document.querySelector(sel); if (el) (el.closest('.row, .stack') || el).classList.add('is-invalid'); errs.push(msg); };
+    if (!h.machine.trim()) bad('[data-h="machine"]', 'หมายเลขเครื่อง');
+    if (!h.factory) bad('[data-h="factory"]', 'โรงงาน');
+    if (!h.inspector.trim()) bad('[data-h="inspector"]', 'ชื่อผู้ตรวจ');
+    if (form.subtypes && form.subtypes.length > 1 && !h.subtype) bad('[data-need="subtype"]', 'ชนิดเครื่อง');
+    if (form.kind === 'pm' && !h.job) bad('[data-need="job"]', 'ประเภทงาน');
+    else if (form.kind === 'pm' && h.job === 'pm' && !h.period) bad('[data-need="period"]', 'รอบ PM');
+    const r = tally();
+    const noReason = r.notDone.filter(t => !String(S.tn[t.id] || '').trim());
+    if (noReason.length) {
+      errs.push(`เหตุผลของข้อที่ไม่เสร็จ (${noReason.map(t => t.id).join(', ')})`);
+      noReason.forEach(t => document.querySelector(`[data-tn="${CSS.escape(t.id)}"]`)?.classList.add('is-invalid'));
+    }
+    const errBox = $('formErr');
+    if (errs.length) {
+      errBox.hidden = false;
+      errBox.innerHTML = `<b>ยังบันทึกไม่ได้</b>ยังขาด: ${errs.map(esc).join(' · ')}`;
+      scrollToEl(document.querySelector('.is-invalid') || errBox);
+      return;
+    }
+    errBox.hidden = true;
+    const empty = r.total - r.filled;
+    if (empty > 0 && !force) { askEmpty(empty); return; }
+    commit(r);
+  }
+
+  // One decision in a sheet with an obvious way out (replaces the browser confirm box)
+  // A sheet that asks one question: the action button, a way back, Esc or a tap outside closes it.
+  // danger = the action destroys data: it is red and the way back gets the focus.
+  function confirmSheet({ title, desc, ok, back, danger, onOk, onBack }) {
+    $('sheetHost').innerHTML = `<div class="backdrop" id="bd"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shT" aria-describedby="shD">
+      <div class="grabber" aria-hidden="true"></div>
+      <h2 id="shT">${esc(title)}</h2>
+      <p id="shD">${esc(desc)}</p>
+      <div class="acts"><button type="button" class="btn-block ${danger ? 'danger' : 'primary'}" id="shOk">${esc(ok)}</button>
+        <button type="button" class="btn-block secondary" id="shBack">${esc(back)}</button></div></div></div>`;
+    const close = () => { $('sheetHost').innerHTML = ''; document.removeEventListener('keydown', onKey); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    $('bd').addEventListener('click', (e) => { if (e.target.id === 'bd') close(); });
+    $('shBack').addEventListener('click', () => { close(); if (onBack) onBack(); });
+    $('shOk').addEventListener('click', () => { close(); onOk(); });
+    $(danger ? 'shBack' : 'shOk').focus();
+  }
+
+  // Short note above the toolbar that fades by itself
+  let toastTimer;
+  function toast(msg) {
+    let el = $('toast');
+    if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.textContent = msg; el.classList.add('on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('on'), 3000);
+  }
+
+  function askEmpty(n) {
+    confirmSheet({ title: `ยังมีช่องว่าง ${n} ช่อง`, desc: 'ข้อที่เขียนว่า "ถ้ามี" เว้นว่างได้ ช่องว่างจะไม่ถูกนับเป็นนอกเกณฑ์',
+      ok: 'บันทึกผลตามนี้', back: 'กลับไปกรอกต่อ', onOk: () => save(true), onBack: () => jump('empty') });
+  }
+
+  // Reset: clears this form back to blank; factory and inspector stay so the next entry starts quicker
+  function askReset() {
+    confirmSheet({ title: 'ล้างค่าที่กรอกทั้งหมด?', desc: 'เลขเครื่อง ประเภทงาน และทุกค่าในหัวข้อ 1–3 ของฟอร์มนี้จะหายและย้อนกลับไม่ได้ โรงงานกับชื่อผู้ตรวจยังอยู่',
+      ok: 'ล้างค่า', back: 'ยกเลิก', danger: true, onOk: () => {
+        const keep = { factory: S.h.factory, inspector: S.h.inspector }, editId = S.editId;
+        store.del(curKey());
+        S = blankState(form); Object.assign(S.h, keep);
+        if (editId) S.editId = editId;
+        renderForm(); window.scrollTo(0, 0);
+        document.querySelector('[data-h="machine"]')?.focus({ preventScroll: true });
+      } });
+  }
+
+  function commit(r) {
+    const h = S.h;
+    const keepIds = new Set(form.m.filter(i => isNeeded(form, i, h)).map(i => i.id));
+    const values = Object.fromEntries(Object.entries(S.v).filter(([id]) => keepIds.has(id)));
+    form.m.filter(i => keepIds.has(i.id)).forEach(i => computed(i, values[i.id] || {}, h, values).forEach(c => { if (isFinite(c.v)) (values[i.id] = values[i.id] || {})[c.k] = fmt(c.v); }));
+    const taskIds = new Set((form.t || []).filter(t => isNeeded(form, t, h)).map(t => t.id));
+    const t = new Date();
+    const line = (x) => ({ id: x.item.id, label: x.item.label, detail: `${x.l ? x.l + ' = ' : ''}${x.v}${x.u ? ' ' + x.u : ''}` });
+    const rec = {
+      id: `INS-${h.date.replace(/-/g, '')}-${pad(t.getHours())}${pad(t.getMinutes())}${pad(t.getSeconds())}`,
+      form: form.id, formName: form.name, code: form.code, kind: form.kind,
+      h: { ...h, machine: h.machine.trim().toUpperCase() },
+      v: values,
+      t: Object.fromEntries(Object.entries(S.t).filter(([id]) => taskIds.has(id))),
+      tn: Object.fromEntries(Object.entries(S.tn).filter(([id]) => taskIds.has(id) && S.t[id] === 'notdone')),
+      // 3.2 keeps what was typed plus the verdict and auto value as judged at save time; 3.3 keeps a snapshot of each finding
+      // 3.2 advice: only the checks something was entered for, with the verdict of their own readings
+      rr: Object.fromEntries(rrRows(form.id).filter(x => Object.values(S.rr[x.id] || {}).some(v => String(v).trim()))
+        .map(x => [x.id, { ...S.rr[x.id], st: rrEval(x.row, S.rr[x.id]).st }])),
+      result: { ng: r.ng.map(line), watch: r.watch.map(line), notDone: r.notDone.map(x => ({ id: x.id, label: x.label, detail: S.tn[x.id] || '' })) },
+      savedAt: t.toISOString()
+    };
+    const all = store.get(HIST, []);
+    if (S.editId) {
+      // An edit keeps the result's id and first save time, and replaces it where it was in the list
+      const i = all.findIndex(x => x.id === S.editId), old = all[i];
+      if (old) { Object.assign(rec, { id: old.id, savedAt: old.savedAt, editedAt: t.toISOString() }); all[i] = rec; } else all.unshift(rec);
+      const ok = store.set(HIST, all);
+      rememberMachine();
+      store.del(editKey(S.editId));
+      location.hash = `#/rec/${rec.id}`;
+      toast(ok ? 'บันทึกการแก้ไขแล้ว' : 'บันทึกในมือถือไม่ได้');
+      return;
+    }
+    all.unshift(rec);
+    const ok = store.set(HIST, all);
+    store.set('insp.last', { factory: h.factory, inspector: h.inspector });
+    rememberMachine();
+    store.del(draftKey(form.id));
+    showDone(rec, ok);
+  }
+
+  function findRow(kind, x, fix = '') {
+    return `<div class="row find"><span class="g ${kind}" aria-hidden="true">${kind === 'ng' ? '✕' : kind === 'ok' ? '✓' : '!'}</span><span class="t">${esc(x.id)} ${esc(x.label)}<small>${esc(x.detail)}</small>${fix ? `<small class="fix">${esc(fix)}</small>` : ''}</span></div>`;
+  }
+  // What a saved result found, worst first (sections 1–2 only)
+  function findingsHtml(rec) {
+    const sec = (title, kind, list) => list.length ? `<section class="group"><h2 class="group-h"><span>${title}</span><span class="num">${list.length} ข้อ</span></h2>
+      <div class="card">${list.map(x => findRow(kind, x)).join('')}</div></section>` : '';
+    return sec('นอกเกณฑ์', 'ng', rec.result.ng) + sec('ไม่เสร็จ', 'ng', rec.result.notDone) + sec('เฝ้าระวัง', 'watch', rec.result.watch);
+  }
+  // The optional 3.2 advice entries of a saved result, shown apart from its findings
+  function adviceHtml(rec) {
+    const rows = ((RR[rec.form] || {}).rows || []);
+    const list = Object.entries(rec.rr || {}).map(([id, v]) => {
+      const row = rows[+id.split('.')[2] - 1];
+      const typed = row && row.cells ? row.cells.map(c => v[c.k] ? `${c.l} ${v[c.k]}${c.u ? ' ' + c.u : ''}` : '').filter(Boolean).join(' · ') : '';
+      const st = v.st || (v.r || '');
+      return findRow(st === 'ng' ? 'ng' : st === 'watch' ? 'watch' : 'ok', { id, label: row ? row.l : '', detail: typed || (st === 'ng' ? 'ผิดปกติ' : st === 'ok' ? 'ปกติ' : '') }, v.n ? `หมายเหตุ: ${v.n}` : '');
+    });
+    return list.length ? `<section class="group"><h2 class="group-h"><span>3 · Review-Revise</span><span class="num">แนะนำ · ไม่นับในผล</span></h2><div class="card">${list.join('')}</div></section>` : '';
+  }
+  const jobLabel = (h) => h.job === 'pm' ? `PM ${h.period}` : h.job === 'repair' ? 'งานซ่อม' : h.job === 'insp' ? 'Inspection' : 'รายวัน';
+
+  // One saved result: what did not pass and what was done about it
+  function showRecord(id) {
+    form = null; S = null;
+    const rec = store.get(HIST, []).find(r => r.id === id);
+    setNav(rec ? `${rec.form} · ${rec.h.machine}` : 'ผลตรวจ', rec ? `${rec.h.date} ${rec.h.time || ''}` : '', true, 'ผลตรวจ'); setFormChrome(false);
+    if (!rec) { $('app').innerHTML = '<section class="group"><div class="card"><p class="empty">ไม่พบผลตรวจนี้ในมือถือเครื่องนี้</p></div></section>'; return; }
+    const bad = rec.result.ng.length + rec.result.notDone.length, watch = rec.result.watch.length;
+    $('app').innerHTML = `<div class="result">
+        <div class="seal ${bad ? 'ng' : 'ok'}" aria-hidden="true">${bad ? '!' : '✓'}</div>
+        <h1>${bad ? `ไม่ผ่าน ${bad} รายการ` : 'ผ่านทุกข้อ'}</h1>
+        <p>${esc(rec.formName || rec.form)} · ${esc(rec.h.machine)} · ${esc(rec.h.factory)}</p>
+        <p class="num">${esc(rec.h.date)} ${esc(rec.h.time || '')} · ${esc(jobLabel(rec.h))} · ${esc(rec.h.inspector)}</p>
+        ${watch ? `<p>เฝ้าระวัง ${watch} รายการ</p>` : ''}
+        ${rec.editedAt ? `<p class="num">แก้ไขล่าสุด ${esc(new Date(rec.editedAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }))}</p>` : ''}
+      </div>
+      ${findingsHtml(rec) || '<section class="group"><div class="card"><p class="empty">ทุกค่าอยู่ในเกณฑ์ และทำงานครบทุกหัวข้อ</p></div></section>'}
+      ${adviceHtml(rec)}
+      ${rec.h.comment ? `<section class="group"><h2 class="group-h">Other Comment / Alarm Code</h2><div class="card"><p class="empty" style="color:var(--label)">${esc(rec.h.comment)}</p></div></section>` : ''}
+      <section class="group"><div class="acts" style="display:flex;flex-direction:column;gap:8px">
+        ${canPrint(rec.form) ? `<button type="button" class="btn-block secondary" id="pdf">พิมพ์ใบตรวจ / บันทึกเป็น PDF</button>` : ''}
+        <button type="button" class="btn-block secondary" id="editRec">แก้ไขผลตรวจ</button>
+        <button type="button" class="btn-block reset" id="delRec" style="margin-top:0">ลบผลตรวจนี้</button></div></section>`;
+    $('pdf')?.addEventListener('click', () => { location.hash = `#/print/${rec.id}`; });
+    $('editRec').addEventListener('click', () => { freshEdit = true; location.hash = `#/e/${rec.id}`; });
+    $('delRec').addEventListener('click', () => askDelete(rec.id));
+    window.scrollTo(0, 0);
+  }
+
+  function showDone(rec, ok) {
+    const bad = rec.result.ng.length + rec.result.notDone.length;
+    setNav('', '', false); setFormChrome(false);
+    $('app').innerHTML = `<div class="result">
+        <div class="seal ${bad ? 'ng' : 'ok'}" aria-hidden="true">${bad ? '!' : '✓'}</div>
+        <h1>${ok ? 'บันทึกแล้ว' : 'บันทึกในมือถือไม่ได้'}</h1>
+        <p class="num">${esc(rec.h.machine)} · ${esc(rec.id)}</p>
+        <p>${bad ? `มี ${bad} รายการที่ต้องติดตาม` : 'ทุกค่าอยู่ในเกณฑ์'}${rec.result.watch.length ? ` · เฝ้าระวัง ${rec.result.watch.length}` : ''}</p>
+      </div>
+      ${findingsHtml(rec)}
+      <section class="group"><div class="acts" style="display:flex;flex-direction:column;gap:8px">
+        ${canPrint(rec.form) ? `<button type="button" class="btn-block secondary" id="pdf">พิมพ์ใบตรวจ / บันทึกเป็น PDF</button>` : ''}
+        <button type="button" class="btn-block primary" id="next">ตรวจ ${esc(rec.form)} เครื่องถัดไป</button>
+        <button type="button" class="btn-block secondary" id="home">เลือกเครื่องชนิดอื่น</button></div></section>`;
+    $('next').addEventListener('click', () => {
+      const keep = { factory: rec.h.factory, inspector: rec.h.inspector, job: rec.h.job, period: rec.h.period, date: rec.h.date };
+      S = blankState(form); Object.assign(S.h, keep); S.h.time = nowHm();
+      setNav(`${form.id} · ${form.name}`, form.code, true); setFormChrome(true);
+      renderForm(); window.scrollTo(0, 0);
+      document.querySelector('[data-h="machine"]')?.focus();
+    });
+    $('home').addEventListener('click', () => { location.hash = '#/'; });
+    $('pdf')?.addEventListener('click', () => { location.hash = `#/print/${rec.id}`; });
+    window.scrollTo(0, 0);
+  }
+
+  // =====================================================================
+  // Print on the original paper form: the PDF page as background, values placed on top
+  // =====================================================================
+  const PL = window.PRINT_LAYOUT || {};
+  const canPrint = (formId) => !!PL[formId];
+  // Spots read off the sheet by hand (no text label to anchor on)
+  const MANUAL = {
+    WP: { align: { g: [[0.239, 0.549], [0.239, 0.613], [0.183, 0.579], [0.300, 0.579]], o: [[0.499, 0.546], [0.505, 0.612], [0.447, 0.581], [0.567, 0.581]] },
+          vunb: { x: 0.755, y: [0.601, 0.615, 0.629] } },
+    // 4x4 air-velocity tables, offsets from the small ก่อน / หลัง label beside each table
+    gridAHU:  { b: { dx: [0.092, 0.138, 0.185, 0.23], dy: [0.014, 0.0317, 0.0494, 0.0671] }, a: { dx: [0.107, 0.15, 0.191, 0.237], dy: [0.014, 0.0317, 0.0494, 0.0671] } },
+    gridPCAC: { b: { dx: [0.092, 0.135, 0.178, 0.222], dy: [0.0127, 0.0279, 0.043, 0.0582] }, a: { dx: [0.095, 0.138, 0.18, 0.222], dy: [0.0127, 0.0279, 0.043, 0.0582] } },
+  };
+  const pct = (n) => `${(n * 100).toFixed(3)}%`;
+
+  // Printed width of a value in px: measured on a hidden .pv inside a .psheet, so it uses the print font exactly
+  let measureEl;
+  function textW(s, size) {
+    if (!measureEl) {
+      const host = document.createElement('div');
+      host.className = 'psheet'; host.setAttribute('aria-hidden', 'true');
+      host.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden';
+      measureEl = document.createElement('span'); measureEl.className = 'pv'; measureEl.style.transform = 'none';
+      host.appendChild(measureEl); document.body.appendChild(host);
+    }
+    measureEl.style.fontSize = size + 'px'; measureEl.textContent = s;
+    return measureEl.getBoundingClientRect().width;
+  }
+
+  function buildSheet(rec) {
+    const L = PL[rec.form], f = formById(rec.form), h = rec.h;
+    const W = L.page[0] * 96 / 72, H = L.page[1] * 96 / 72;
+    const parts = [];
+    // o.fit = width of the printed blank (page fraction): a value too long for it stays on one line, first smaller
+    // (down to 7px, still readable on paper), then condensed sideways for the rest
+    const put = (x, y, text, o = {}) => {
+      if (x == null || y == null || text == null || String(text).trim() === '') return;
+      let fs = o.fs || 0, sx = 1;
+      if (o.fit) {
+        const w = textW(String(text), 10.5), room = o.fit * W;
+        if (w > room) { fs = Math.max(7, 10.5 * room / w); sx = Math.min(1, room / (w * fs / 10.5)); }
+      }
+      const squeeze = sx < 1 ? `;transform:translate(${o.c ? '-50%' : '0'},-96%) scaleX(${sx.toFixed(3)});transform-origin:${o.c ? '50%' : '0'} 0` : '';
+      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.box ? ' mid' : ''}${o.ng ? ' ng' : ''}${o.s ? ' s' : ''}" style="left:${pct(x)};top:${pct(y)}${fs ? `;font-size:${fs.toFixed(1)}px` : ''}${squeeze}">${esc(text)}</span>`);
+    };
+    const field = (p, text) => { if (p) put(p[0], p[1], text, { fit: p[2] }); };
+    const ring = (m) => { if (m) parts.push(`<span class="pring" style="left:${pct(m[0])};top:${pct(m[1])};width:${((m[2] + 0.02) * W).toFixed(1)}px"></span>`); };
+    const tick = (x, y) => put(x, y, '✓', { c: 1 });
+    const hd = L.hdr, ft = L.foot;
+
+    // Header
+    // Split values into the printed segments: ___ - ___ - ___ - ___ , __/__/__ , __ : __
+    const segs = (u, parts, fr) => { if (!u) return; parts.forEach((p, k) => put(u[0] + u[2] * fr[k], u[1], p, { c: 1 })); };
+    const mParts = h.machine.split('-');
+    if (hd.machine) { if (mParts.length >= 2 && mParts.length <= 4) segs(hd.machine, mParts, [0.12, 0.38, 0.63, 0.88]); else put(hd.machine[0] + 0.004, hd.machine[1], h.machine); }
+    field(hd.factory, h.factory);
+    if (hd.date) segs(hd.date, h.date.split('-').reverse(), [0.15, 0.48, 0.8]);
+    if (hd.time) segs(hd.time, h.time.split(':'), [0.25, 0.78]);
+    field(hd.panel, h.panel);
+    (f.models || []).forEach(m => field(hd.models[m.toLowerCase()] || hd.models[''], h.models[m]));
+    const mark = (k, i = 0) => ring((hd.marks[k] || [])[i]);
+    // Machine type: a tick in the box beside its label (boxes found by tools/find_boxes.js); a ring if no box was found
+    if (f.subtypes && f.subtypes.length > 1) {
+      const bx = ((hd.boxes || {})[h.subtype] || [])[0];
+      if (bx) put(bx[0], bx[1], '✓', { c: 1, box: 1 }); else mark(h.subtype);
+    }
+    mark(h.job);
+    if (h.job === 'pm') mark(h.period);
+    // Pump / valve state (WP): a tick in the box before เปิด or ปิด on its own row; a ring if no box was found
+    if (f.pumpState) [h.pumpState, h.valveState].forEach((s, i) => {
+      const bx = ((hd.boxes || {})[s] || [])[i];
+      if (bx) put(bx[0], bx[1], '✓', { c: 1, box: 1 }); else mark(s, i);
+    });
+
+    // Section 1: measured values, one sheet row per item (in sheet order)
+    // An item outside the chosen job / PM round prints "-" in every box it has, so the sheet shows it was not due
+    const dash = (it) => Object.fromEntries([...cellsOf(it, h).filter(c => c.k !== 'rla').map(c => c.k), 'b_avg', 'a_avg', 'avgTime', 'avgDosing'].map(k => [k, '-']));
+    const sheetItems = f.m.filter(i => i.type !== 'vunb');
+    sheetItems.forEach((it, idx) => {
+      const vals = isNeeded(f, it, h) ? rec.v[it.id] : dash(it); const y = L.rows1[idx];
+      if (!vals || y == null) return;
+      const ng = (k) => judge(it, k, vals[k], vals, h) === 'ng';
+      const P = (x, yy, k, c = 1) => put(x, yy, vals[k], { c, ng: ng(k), s: !c });
+      const inl = L.inl.filter(a => Math.abs(a.y - y) < 0.005);
+      const below = (re, n) => L.inl.filter(a => re.test(a.s) && a.y >= y - 0.004).sort((a, b) => a.y - b.y).slice(0, n);
+      switch (it.type) {
+        case 'value':
+          if (it.ba !== 'after') P(L.cols.b, y, 'b');
+          P(L.cols.a, y, 'a'); break;
+        case 'v3': case 'i3': {
+          const keys = it.type === 'v3' ? (h.phase === '1' ? ['L-N'] : ['RS', 'ST', 'RT', 'RN']) : (h.phase === '1' ? ['I'] : ['R', 'S', 'T']);
+          if (it.ba === 'both') {
+            // Cells print as "  /  /  ": put the three phases between the slashes when they are known
+            const sl = inl.filter(a => a.s === '/').map(a => a.x).sort((a, b) => a - b);
+            ['b', 'a'].forEach((p, pi) => {
+              const pair = sl.length >= 4 ? sl.slice(pi * 2, pi * 2 + 2) : null;
+              keys.forEach((k, j) => {
+                const x = keys.length === 1 ? L.cols[p] : pair ? [pair[0] - 0.016, (pair[0] + pair[1]) / 2 + 0.001, pair[1] + 0.018][j] : L.cols[p] + (j - 1) * 0.036;
+                put(x, y, vals[`${p}_${k}`], { c: 1, s: 1, ng: ng(`${p}_${k}`) });
+              });
+            });
+          } else if (it.slash && inl.filter(a => a.s === '/').length >= 2 && keys.length > 1) {
+            // One after-work cell printed as "  /  /  ": phases go before, between and after the two slashes
+            const [s1, s2] = inl.filter(a => a.s === '/').map(a => a.x).sort((a, b) => a - b);
+            keys.slice(0, 3).forEach((k, j) => P([s1 - 0.022, (s1 + s2) / 2 + 0.001, s2 + 0.024][j], y, `a_${k}`, 1));
+          } else {
+            const base = inl.find(a => /^(RS|R):$/.test(a.s));
+            keys.forEach((k, j) => {
+              const lab = k === 'L-N' ? 'RS' : k === 'I' ? 'R' : k;
+              const a = inl.find(a => a.s.replace(/\s/g, '') === `${lab}:`);
+              const x = a ? a.e + 0.003 : base ? base.e + 0.003 + j * (it.type === 'v3' ? 0.045 : 0.06) : L.cols.b + j * 0.045;
+              // Labels printed close together (RS:___ST:___): shrink the value so it ends before the next label
+              const next = inl.filter(b => b.x > x).sort((p, q) => p.x - q.x)[0];
+              const room = next ? (next.x - x - 0.002) * W : Infinity, len = String(vals[`a_${k}`] || '').length;
+              const fs = len ? Math.max(6.5, Math.min(8.5, room / (len * 0.6))) : 8.5;
+              put(x, y, vals[`a_${k}`], { ng: ng(`a_${k}`), s: 1, fs: fs < 8.5 ? fs : 0 });
+            });
+          }
+          break;
+        }
+        case 'ins': {
+          const ug = below(/^U-G$/, 1)[0]; const y0 = ug ? ug.y : y;
+          ['U-G', 'V-G', 'W-G'].forEach((k, j) => {
+            const an = L.inl.find(a => a.s === k && Math.abs(a.y - (y0 + j * L.rowH)) < 0.006);
+            P((L.cols.b + L.cols.a) / 2, an ? an.y : y0 + j * L.rowH, k);
+          });
+          break;
+        }
+        case 'belt': {
+          const ans = below(/^[1-3] ?:$/, it.n);
+          for (let j = 0; j < it.n; j++) { const an = ans[j]; P(an ? an.e + 0.012 : L.cols.b, an ? an.y : y + j * L.rowH, `l${j + 1}`, 0); }
+          break;
+        }
+        case 'refr': {
+          const lo = inl.find(a => /^Low/.test(a.s)), hi = inl.find(a => /High :$/.test(a.s));
+          P(lo ? lo.e + 0.004 : L.cols.b, y, 'lo', 0); P(hi ? hi.e + 0.004 : L.cols.a, y, 'hi', 0); break;
+        }
+        case 'pair': {
+          const ans = inl.filter(a => /^(Comp\.|CDU)\d ?:$/.test(a.s)).sort((a, b) => a.x - b.x);
+          it.labels.forEach((l, j) => P(ans[j] ? ans[j].e + 0.006 : L.cols.b + j * 0.1, y, `p${j + 1}`, 0)); break;
+        }
+        case 'vibTemp': {
+          const t = L.tbl.vt; if (!t) break;
+          for (let k = 1; k <= it.n; k++) { P(t.v, t.y0 + k * t.rh, `v${k}`); P(t.t, t.y0 + k * t.rh, `t${k}`); }
+          break;
+        }
+        case 'grid': {
+          const g = L.tbl.grid; if (!g) break;
+          const off = MANUAL['grid' + rec.form] || MANUAL.gridAHU;
+          ['b', 'a'].forEach(p => { for (let r = 1; r <= 4; r++) for (let c = 1; c <= 4; c++) P(g[p][0] + off[p].dx[c - 1], g[p][1] + off[p].dy[r - 1], `${p}${r}${c}`); });
+          P(L.cols.b, y, 'b_avg'); P(L.cols.a, y, 'a_avg'); break;
+        }
+        case 'dosing': {
+          const d = L.tbl.dose; if (!d) break;
+          [10, 20, 30, 40, 50].forEach(ml => { const yy = d.rows[ml]; if (yy == null) return; P(d.t1, yy, `t1_${ml}`); P(d.t2, yy, `t2_${ml}`); });
+          P(...d.avgTime, 'avgTime'); P(...d.avgDosing, 'avgDosing'); break;
+        }
+        case 'choice':
+          if (L.tbl.choice && L.tbl.choice[vals.v]) tick(...L.tbl.choice[vals.v]); break;
+        case 'align': {
+          const m = MANUAL[rec.form] && MANUAL[rec.form].align; if (!m) break;
+          [0, 1, 2, 3].forEach(j => { P(...m.g[j], `g${j}`); P(...m.o[j], `o${j}`); }); break;
+        }
+      }
+    });
+    const vu = f.m.find(i => i.type === 'vunb'), vm = MANUAL[rec.form] && MANUAL[rec.form].vunb;
+    if (vu && vm && rec.v[vu.id]) ['vavg', 'vunb', 'tinc'].forEach((k, j) => put(vm.x, vm.y[j], rec.v[vu.id][k], { c: 1 }));
+
+    // Section 2: tick the chosen column; a task outside the round gets "-" under ไม่ได้ทำ
+    (f.t || []).forEach((t, i) => {
+      if (L.rows2[i] == null) return;
+      if (!isNeeded(f, t, h)) { put(L.tcols.skip, L.rows2[i], '-', { c: 1 }); return; }
+      const s = rec.t[t.id]; if (s) tick(L.tcols[s], L.rows2[i]);
+    });
+
+    // Footer
+    const note = [h.comment, ...Object.entries(rec.tn || {}).map(([id, n]) => `ข้อ ${id} ไม่เสร็จ: ${n}`)].filter(Boolean).join(' · ');
+    if (note) parts.push(`<div class="pcomment" style="left:${pct(ft.commentX)};top:${pct(ft.comment[1] - 0.016)};width:${pct(0.95 - ft.commentX)};text-indent:${((ft.comment[0] - ft.commentX) * W).toFixed(1)}px;line-height:${(0.0172 * H).toFixed(1)}px">${esc(note)}</div>`);
+    // Layout y is the box's bottom edge: lift the name so it sits inside the signature box, not on its line
+    put(ft.service[0], ft.service[1] - 0.011, h.inspector, { c: 1, fs: Math.max(7, Math.min(10.5, 0.068 * W / (h.inspector.length * 0.6))) });
+    // Ref no boxes: each value is centred in its box and shrinks to the inner width less a small margin
+    // (refW = [width, centre x], found by tools/find_boxes.js; sheets without boxes keep the caption's centre)
+    const ref = (k, text) => {
+      const b = ft.refW && ft.refW[k];
+      if (ft[k]) put(b ? b[1] : ft[k][0], ft[k][1], text, { c: 1, fit: b ? b[0] - 0.01 : undefined });
+    };
+    ref('mc', h.machine);
+    ref('period', h.job === 'pm' ? h.period : h.job === 'repair' ? 'ซ่อม' : 'Insp.');
+    ref('date', h.date.split('-').reverse().join('/'));
+    return { html: `<div class="psheet" style="width:${W.toFixed(1)}px;height:${H.toFixed(1)}px"><img class="pbg" src="${L.bg}" alt="">${parts.join('')}</div>`, W, H, L };
+  }
+
+  function showPrint(id) {
+    form = null; S = null;
+    const rec = store.get(HIST, []).find(r => r.id === id);
+    setNav('พิมพ์ใบตรวจ', rec ? rec.h.machine : '', true, 'ผลตรวจ'); setFormChrome(false);
+    if (!rec || !canPrint(rec.form)) {
+      $('app').innerHTML = `<section class="group"><div class="card"><p class="empty">${rec ? 'ฟอร์มรายวันยังพิมพ์ลงใบเดิมไม่ได้ ใช้ CSV ไปก่อน' : 'ไม่พบผลตรวจนี้ในมือถือเครื่องนี้'}</p></div></section>`;
+      return;
+    }
+    const s = buildSheet(rec);
+    $('printHost').innerHTML = `<style>@page { size: ${(s.L.page[0] / 72).toFixed(2)}in ${(s.L.page[1] / 72).toFixed(2)}in; margin: 0; }</style>${s.html}`;
+    $('app').innerHTML = `<div class="large"><h1>ใบตรวจ ${esc(rec.form)}</h1><p>ข้อมูลที่กรอกลงบนฟอร์มเดิม ตัวเลขสีแดง = นอกเกณฑ์ ช่องลายเซ็นเว้นไว้ให้เซ็นจริง</p></div>
+      <section class="group"><button type="button" class="btn-block primary" id="doPrint">พิมพ์ / บันทึกเป็น PDF</button>
+      <p class="group-f">ในหน้าพิมพ์ เลือกเครื่องพิมพ์ หรือเลือก "บันทึกเป็น PDF" (Android) · กดแชร์แล้วเลือกพิมพ์ จากนั้นถ่างนิ้วที่ตัวอย่างเพื่อได้ PDF (iPhone)</p></section>
+      <div class="pprev" id="pprev"><div class="pprev-in" id="pprevIn">${s.html}</div></div>`;
+    // Without the form picture the printout is bare numbers: say so plainly instead of showing a broken image
+    const bgFailed = () => {
+      if ($('bgErr')) return;
+      $('pprev').insertAdjacentHTML('beforebegin', `<div class="banner" id="bgErr" role="alert"><b>ภาพใบฟอร์มยังไม่อยู่ในเครื่องนี้</b>ต่ออินเทอร์เน็ตแล้วเปิดแอปใหม่ 1 ครั้ง ระบบจะเก็บไว้ให้ใช้ตอนออฟไลน์ ตอนนี้พิมพ์ได้แค่ตัวเลข</div>`);
+    };
+    [$('pprevIn'), $('printHost')].forEach(h => { const im = h.querySelector('img.pbg'); if (im) { im.addEventListener('error', bgFailed, { once: true }); if (im.complete && !im.naturalWidth) bgFailed(); } });
+    const fit = () => { const box = $('pprev'); if (!box) return; const k = box.clientWidth / s.W; $('pprevIn').style.transform = `scale(${k})`; box.style.height = `${(s.H * k).toFixed(0)}px`; };
+    fit(); window.addEventListener('resize', fit, { once: true });
+    $('doPrint').addEventListener('click', () => {
+      const img = $('printHost').querySelector('img');
+      const go = () => window.print();
+      if (img && !img.complete) img.addEventListener('load', go, { once: true }); else go();
+    });
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- History + CSV ----------
+  function showHistory() {
+    form = null; S = null;
+    setNav('ผลตรวจที่บันทึก', '', true); setFormChrome(false);
+    const all = store.get(HIST, []);
+    $('app').innerHTML = `<div class="large"><h1>ผลตรวจ</h1><p>${all.length} รายการ · เก็บในมือถือเครื่องนี้เท่านั้น ดาวน์โหลด CSV เก็บไว้เป็นระยะ</p></div>
+      <section class="group"><div class="card">${all.length ? all.slice(0, 50).map(r => {
+        const bad = r.result.ng.length + r.result.notDone.length;
+        const inner = `${machIcon(r.form)}<span class="main"><b>${esc(r.h.machine)} · ${esc(r.h.factory)}</b><small class="num">${esc(r.h.date)} ${esc(r.h.time || '')} · ${esc(jobLabel(r.h))} · ${esc(r.h.inspector)}</small></span><span class="res ${bad ? 'ng' : 'ok'}">${bad ? `✕ ${bad}` : '✓ ผ่าน'}</span>`;
+        const open = `<button type="button" class="row nrow" data-rec="${esc(r.id)}" aria-label="ดูผลตรวจ ${esc(r.h.machine)} ${esc(r.h.date)}">${inner}${CHEV}</button>`;
+        return `<div class="hrow">${open}<button type="button" class="del" data-del="${esc(r.id)}" aria-label="ลบผลตรวจ ${esc(r.h.machine)} ${esc(r.h.date)}">${TRASH}</button></div>`;
+      }).join('') : '<p class="empty">ยังไม่มีผลตรวจ เริ่มจากเลือกเครื่องที่หน้าแรก</p>'}</div></section>
+      <section class="group"><button type="button" class="btn-block primary" id="csv"${all.length ? '' : ' disabled style="opacity:.4"'}>ดาวน์โหลด CSV</button>
+      <p class="group-f">1 แถวต่อ 1 ค่าที่วัดหรือ 1 หัวข้องาน เปิดใน Excel ได้</p></section>`;
+    $('csv').addEventListener('click', exportCsv);
+    $('app').querySelectorAll('[data-rec]').forEach(b => b.addEventListener('click', () => { location.hash = `#/rec/${b.dataset.rec}`; }));
+    $('app').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => askDelete(b.dataset.del)));
+    window.scrollTo(0, 0);
+  }
+
+  // Delete one saved result from this phone, after saying exactly which one and that it can't come back
+  function askDelete(id) {
+    const r = store.get(HIST, []).find(x => x.id === id);
+    if (!r) return;
+    confirmSheet({ title: 'ลบผลตรวจนี้?', desc: `${r.form} · ${r.h.machine} · ${r.h.date} ${r.h.time || ''} จะหายจากมือถือเครื่องนี้และย้อนกลับไม่ได้ ถ้ายังไม่ได้ดาวน์โหลด CSV ให้ดาวน์โหลดก่อน`,
+      ok: 'ลบผลตรวจ', back: 'ยกเลิก', danger: true, onOk: () => {
+        const y = window.scrollY;
+        store.set(HIST, store.get(HIST, []).filter(x => x.id !== id));
+        store.del(editKey(id));   // unsaved edits of a deleted result are dead weight
+        if (location.hash.startsWith('#/rec/')) location.hash = '#/history';
+        else { showHistory(); window.scrollTo(0, y); }
+      } });
+  }
+
+  function exportCsv() {
+    const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const head = ['รหัสตรวจ', 'วันที่', 'เวลา', 'ฟอร์ม', 'เลขฟอร์ม', 'เลขเครื่อง', 'โรงงาน', 'ชนิด', 'ประเภทงาน', 'รอบ', 'ผู้ตรวจ', 'ข้อ', 'หัวข้อ', 'ช่อง', 'ค่า', 'ผล', 'หมายเหตุ', 'Comment', 'บันทึกเมื่อ'];
+    const rows = [];
+    const ST = { ok: 'ผ่าน', watch: 'เฝ้าระวัง', ng: 'นอกเกณฑ์', done: 'เสร็จ', notdone: 'ไม่เสร็จ', skip: 'ไม่ได้ทำ' };
+    store.get(HIST, []).forEach(r => {
+      const f = formById(r.form);
+      const base = [r.id, r.h.date, r.h.time, r.form, r.code, r.h.machine, r.h.factory, r.h.subtype, r.h.job, r.h.period, r.h.inspector];
+      Object.entries(r.v).forEach(([id, vals]) => {
+        const item = f && f.m.find(i => i.id === id);
+        const labels = item ? Object.fromEntries(rowsOf(item, r.h).flatMap(row => row.c.map(c => [c.k, `${row.t ? row.t + ' ' : ''}${c.l}`]))) : {};
+        Object.entries(vals).forEach(([k, v]) => {
+          if (String(v).trim() === '') return;
+          const st = item ? (k === 'v' && item.type === 'ok' ? (v === 'ผิดปกติ' ? 'ng' : 'ok') : judge(item, k, v, vals, r.h)) : '';
+          rows.push([...base, id, item ? item.label : '', labels[k] || k, v, ST[st] || '', '', r.h.comment, r.savedAt]);
+        });
+      });
+      Object.entries(r.t).forEach(([id, s]) => {
+        const task = f && f.t && f.t.find(t => t.id === id);
+        rows.push([...base, id, task ? task.label : '', 'สถานะ', ST[s] || s, '', r.tn[id] || '', r.h.comment, r.savedAt]);
+      });
+      Object.entries(r.rr || {}).forEach(([id, v]) => {
+        const row = ((RR[r.form] || {}).rows || [])[+id.split('.')[2] - 1];
+        const typed = row && row.cells ? row.cells.map(c => `${c.l} ${v[c.k] || '–'}`).join(' / ') : '';
+        rows.push([...base, id, row ? row.l : '', 'Review-Revise (แนะนำ)', [typed, v.val].filter(Boolean).join(' → '), ST[v.st] || (v.r === 'ng' ? 'นอกเกณฑ์' : ''), v.n || '', r.h.comment, r.savedAt]);
+      });
+      (r.rv || []).forEach(e => {   // 3.3 list kept by results saved before section 3 became advice-only
+        const note = [e.cause && `สาเหตุ: ${e.cause}`, e.act && `แก้ไข: ${e.act}`, e.st === 'fixed' ? 'แก้แล้ว' : e.st === 'follow' ? 'ติดตามต่อ' : ''].filter(Boolean).join(' · ');
+        rows.push([...base, e.id, e.label, 'Revise 3.3', e.detail, ST[e.kind] || '', note, r.h.comment, r.savedAt]);
+      });
+    });
+    const csv = '﻿' + [head, ...rows].map(row => row.map(cell).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `inspection_${todayIso()}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  // =====================================================================
+  // Routing
+  // =====================================================================
+  let freshEdit = false;   // set by the result page's edit button: start from the saved result, not leftover edits
+  function route() {
+    const hash = location.hash || '#/';
+    const editRec = hash.startsWith('#/e/') && store.get(HIST, []).find(r => r.id === decodeURIComponent(hash.slice(4)));
+    const svc = hash.startsWith('#/f/') ? SVC[decodeURIComponent(hash.slice(4))] : editRec && SVC[editRec.form];
+    if (svc) document.body.dataset.svc = svc; else delete document.body.dataset.svc;
+    if (hash.startsWith('#/f/')) openForm(decodeURIComponent(hash.slice(4)));
+    else if (hash.startsWith('#/e/')) { openEdit(decodeURIComponent(hash.slice(4)), freshEdit); freshEdit = false; }
+    else if (hash === '#/history') showHistory();
+    else if (hash.startsWith('#/print/')) showPrint(decodeURIComponent(hash.slice(8)));
+    else if (hash.startsWith('#/rec/')) showRecord(decodeURIComponent(hash.slice(6)));
+    else showHome();
+  }
+  $('app').addEventListener('input', onInput);
+  // Typing a reading for "จุดที่ N" lights box N on that item's picture
+  function markPoint(el, on) {
+    const item = el.dataset && el.dataset.it && form && form.m.find(i => i.id === el.dataset.it);
+    const n = item && item.type === 'vibTemp' && item.fig && (el.dataset.k.match(/^[vt](\d+)$/) || [])[1];
+    if (!n) return;
+    document.querySelectorAll(`.fig[data-fig="${item.fig}"] .fig-pt`).forEach(p => p.classList.toggle('on', on && p.dataset.pt === n));
+  }
+  $('app').addEventListener('focusin', (e) => markPoint(e.target, true));
+  $('app').addEventListener('focusout', (e) => markPoint(e.target, false));
+  function goNext(el) {
+    const next = nextField(el);
+    if (next) { next.focus({ preventScroll: true }); scrollToEl(next.closest('.item, .task, .row, .stack') || next); }
+    else el.blur();
+  }
+  $('app').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.isComposing || e.target.tagName !== 'INPUT' || e.target.type === 'radio') return;
+    e.preventDefault();
+    goNext(e.target);
+  });
+  $('app').addEventListener('change', onInput);
+  $('app').addEventListener('click', (e) => {
+    if (e.target.id === 'toggleAll') { S.showAll = !S.showAll; saveDraft(); renderForm(); }
+    if (e.target.id === 'resetForm') askReset();
+    const fig = e.target.closest('[data-fig]');
+    if (fig) openFig(fig.dataset.fig, fig);
+  });
+  $('tally').addEventListener('click', (e) => { const b = e.target.closest('[data-jump]'); if (b) jump(b.dataset.jump); });
+  $('save').addEventListener('click', () => save(false));
+  // A saved result and its printout step back to the results list, an edit back to its result; everything else goes home
+  $('back').addEventListener('click', () => {
+    const h = location.hash;
+    location.hash = h.startsWith('#/e/') ? `#/rec/${h.slice(4)}` : /^#\/(rec|print)\//.test(h) ? '#/history' : '#/';
+  });
+  window.addEventListener('hashchange', route);
+  route();
+
+  // Keep the app on the phone for use without a network. Browsers allow this only over HTTPS (or localhost).
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* still works online */ });
+    // Each online start tops up the stored files (a first visit may have caught the site half-uploaded)
+    navigator.serviceWorker.ready.then(r => { if (navigator.onLine && r.active) r.active.postMessage('warm'); });
+  }
+  </script>
+</body>
+</html>
