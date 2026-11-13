@@ -1532,15 +1532,35 @@
   };
   const pct = (n) => `${(n * 100).toFixed(3)}%`;
 
+  // Printed width of a value in px: measured on a hidden .pv inside a .psheet, so it uses the print font exactly
+  let measureEl;
+  function textW(s, size) {
+    if (!measureEl) {
+      const host = document.createElement('div');
+      host.className = 'psheet'; host.setAttribute('aria-hidden', 'true');
+      host.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden';
+      measureEl = document.createElement('span'); measureEl.className = 'pv'; measureEl.style.transform = 'none';
+      host.appendChild(measureEl); document.body.appendChild(host);
+    }
+    measureEl.style.fontSize = size + 'px'; measureEl.textContent = s;
+    return measureEl.getBoundingClientRect().width;
+  }
+
   function buildSheet(rec) {
     const L = PL[rec.form], f = formById(rec.form), h = rec.h;
     const W = L.page[0] * 96 / 72, H = L.page[1] * 96 / 72;
     const parts = [];
-    // o.fit = width of the printed blank (page fraction): a value too long for it goes small and wraps inside it
+    // o.fit = width of the printed blank (page fraction): a value too long for it stays on one line, first smaller
+    // (down to 7px, still readable on paper), then condensed sideways for the rest
     const put = (x, y, text, o = {}) => {
       if (x == null || y == null || text == null || String(text).trim() === '') return;
-      const long = o.fit && String(text).length * 6.5 > o.fit * W;   // ~6.5 px per character at 10.5 px
-      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.box ? ' mid' : ''}${o.ng ? ' ng' : ''}${o.s || long ? ' s' : ''}" style="left:${pct(x)};top:${pct(y)}${long ? `;width:${pct(o.fit)};white-space:normal;line-height:1.1` : ''}${o.fs ? `;font-size:${o.fs.toFixed(1)}px` : ''}">${esc(text)}</span>`);
+      let fs = o.fs || 0, sx = 1;
+      if (o.fit) {
+        const w = textW(String(text), 10.5), room = o.fit * W;
+        if (w > room) { fs = Math.max(7, 10.5 * room / w); sx = Math.min(1, room / (w * fs / 10.5)); }
+      }
+      const squeeze = sx < 1 ? `;transform:translate(${o.c ? '-50%' : '0'},-96%) scaleX(${sx.toFixed(3)});transform-origin:${o.c ? '50%' : '0'} 0` : '';
+      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.box ? ' mid' : ''}${o.ng ? ' ng' : ''}${o.s ? ' s' : ''}" style="left:${pct(x)};top:${pct(y)}${fs ? `;font-size:${fs.toFixed(1)}px` : ''}${squeeze}">${esc(text)}</span>`);
     };
     const field = (p, text) => { if (p) put(p[0], p[1], text, { fit: p[2] }); };
     const ring = (m) => { if (m) parts.push(`<span class="pring" style="left:${pct(m[0])};top:${pct(m[1])};width:${((m[2] + 0.02) * W).toFixed(1)}px"></span>`); };
@@ -1565,7 +1585,11 @@
     }
     mark(h.job);
     if (h.job === 'pm') mark(h.period);
-    if (f.pumpState) { mark(h.pumpState, 0); mark(h.valveState, 1); }
+    // Pump / valve state (WP): a tick in the box before เปิด or ปิด on its own row; a ring if no box was found
+    if (f.pumpState) [h.pumpState, h.valveState].forEach((s, i) => {
+      const bx = ((hd.boxes || {})[s] || [])[i];
+      if (bx) put(bx[0], bx[1], '✓', { c: 1, box: 1 }); else mark(s, i);
+    });
 
     // Section 1: measured values, one sheet row per item (in sheet order)
     // An item outside the chosen job / PM round prints "-" in every box it has, so the sheet shows it was not due
@@ -1673,9 +1697,15 @@
     if (note) parts.push(`<div class="pcomment" style="left:${pct(ft.commentX)};top:${pct(ft.comment[1] - 0.016)};width:${pct(0.95 - ft.commentX)};text-indent:${((ft.comment[0] - ft.commentX) * W).toFixed(1)}px;line-height:${(0.0172 * H).toFixed(1)}px">${esc(note)}</div>`);
     // Layout y is the box's bottom edge: lift the name so it sits inside the signature box, not on its line
     put(ft.service[0], ft.service[1] - 0.011, h.inspector, { c: 1, fs: Math.max(7, Math.min(10.5, 0.068 * W / (h.inspector.length * 0.6))) });
-    if (ft.mc) put(...ft.mc, h.machine, { c: 1 });
-    if (ft.period) put(...ft.period, h.job === 'pm' ? h.period : h.job === 'repair' ? 'ซ่อม' : 'Insp.', { c: 1 });
-    if (ft.date) put(...ft.date, h.date.split('-').reverse().join('/'), { c: 1 });
+    // Ref no boxes: each value is centred in its box and shrinks to the inner width less a small margin
+    // (refW = [width, centre x], found by tools/find_boxes.js; sheets without boxes keep the caption's centre)
+    const ref = (k, text) => {
+      const b = ft.refW && ft.refW[k];
+      if (ft[k]) put(b ? b[1] : ft[k][0], ft[k][1], text, { c: 1, fit: b ? b[0] - 0.01 : undefined });
+    };
+    ref('mc', h.machine);
+    ref('period', h.job === 'pm' ? h.period : h.job === 'repair' ? 'ซ่อม' : 'Insp.');
+    ref('date', h.date.split('-').reverse().join('/'));
     return { html: `<div class="psheet" style="width:${W.toFixed(1)}px;height:${H.toFixed(1)}px"><img class="pbg" src="${L.bg}" alt="">${parts.join('')}</div>`, W, H, L };
   }
 
