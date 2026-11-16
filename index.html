@@ -332,24 +332,7 @@
     @media (max-width: 360px) { .row-label { min-width: 6em; } .cells:not(.c4) { grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); } }
     @media (min-width: 720px) { .wrap { padding-left: 24px; padding-right: 24px; } }
 
-    /* ---------- Printout on the original paper form ---------- */
     #printHost { display: none; }
-    .psheet { position: relative; overflow: hidden; background: #FFFFFF; font-family: var(--font); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .pbg { position: absolute; inset: 0; width: 100%; height: 100%; }
-    /* Values written onto the sheet: one calm navy "pen" ink, medium weight, figures of equal width so columns line up;
-       out-of-range in a deep red that still reads in black-and-white printing */
-    .psheet { --ink: #1E3A8A; --ink-ng: #B42318; }
-    .pv { position: absolute; font-size: 10.5px; font-weight: 500; line-height: 1; white-space: nowrap; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; transform: translate(0, -96%); }
-    .pv.c { transform: translate(-50%, -96%); }
-    .pv.mid { transform: translate(-50%, -50%); font-size: 13px; font-weight: 600; }   /* y is the box centre, not a text baseline */
-    .pv.ng { color: var(--ink-ng); font-weight: 600; }
-    .pv.s { font-size: 9px; letter-spacing: 0; }
-    .pring { position: absolute; height: 15px; border: 1.2px solid var(--ink); border-radius: 50%; transform: translate(-50%, -78%); }
-    .pcomment { position: absolute; font-size: 10px; font-weight: 500; color: var(--ink); white-space: normal; letter-spacing: 0.01em; }
-    /* A row outside the chosen job / PM round: a pale grey wash over the row, inset so the table lines stay sharp,
-       which fades the printed words to light grey (bands found by tools/find_bands.js); its "-" marks print light too */
-    .poff { position: absolute; background: rgba(250, 251, 252, 0.66); }
-    .pv.off { color: #9AA3AD; }
     /* ---------- Printout in the "style 1" layout (CE97F1029_style1.html), drawn from the saved data ---------- */
     /* One A4 page: 794 × 1123 px at 96 dpi; .s1-in shrinks to fit when a long form runs over (fitS1) */
     .s1 { position: relative; width: 794px; height: 1123px; overflow: hidden; background: #FFFFFF; color: #111; font-family: "Sarabun", "Tahoma", "Leelawadee UI", "Segoe UI", Arial, sans-serif; font-size: 10.5px; line-height: 1.28; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -433,8 +416,6 @@
   <div id="sheetHost"></div>
   <div id="printHost"></div>
 
-  <!-- Where each value goes on each paper form; generated from the PDFs (see CLAUDE.md) -->
-  <script src="print/layout.js"></script>
   <script>
   // =====================================================================
   // Helpers
@@ -1591,209 +1572,6 @@
   }
 
   // =====================================================================
-  // Print on the original paper form: the PDF page as background, values placed on top
-  // =====================================================================
-  const PL = window.PRINT_LAYOUT || {};
-  const canPrint = (formId) => !!PL[formId];
-  // Spots read off the sheet by hand (no text label to anchor on)
-  const MANUAL = {
-    WP: { align: { g: [[0.239, 0.549], [0.239, 0.613], [0.183, 0.579], [0.300, 0.579]], o: [[0.499, 0.546], [0.505, 0.612], [0.447, 0.581], [0.567, 0.581]] },
-          vunb: { x: 0.755, y: [0.601, 0.615, 0.629] } },
-    // 4x4 air-velocity tables, offsets from the small ก่อน / หลัง label beside each table
-    gridAHU:  { b: { dx: [0.092, 0.138, 0.185, 0.23], dy: [0.014, 0.0317, 0.0494, 0.0671] }, a: { dx: [0.107, 0.15, 0.191, 0.237], dy: [0.014, 0.0317, 0.0494, 0.0671] } },
-    gridPCAC: { b: { dx: [0.092, 0.135, 0.178, 0.222], dy: [0.0127, 0.0279, 0.043, 0.0582] }, a: { dx: [0.095, 0.138, 0.18, 0.222], dy: [0.0127, 0.0279, 0.043, 0.0582] } },
-  };
-  const pct = (n) => `${(n * 100).toFixed(3)}%`;
-
-  // Printed width of a value in px: measured on a hidden .pv inside a .psheet, so it uses the print font exactly
-  let measureEl;
-  function textW(s, size) {
-    if (!measureEl) {
-      const host = document.createElement('div');
-      host.className = 'psheet'; host.setAttribute('aria-hidden', 'true');
-      host.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden';
-      measureEl = document.createElement('span'); measureEl.className = 'pv'; measureEl.style.transform = 'none';
-      host.appendChild(measureEl); document.body.appendChild(host);
-    }
-    measureEl.style.fontSize = size + 'px'; measureEl.textContent = s;
-    return measureEl.getBoundingClientRect().width;
-  }
-
-  let offRow = false;
-  function buildSheet(rec) {
-    const L = PL[rec.form], f = formById(rec.form), h = rec.h;
-    const W = L.page[0] * 96 / 72, H = L.page[1] * 96 / 72;
-    const parts = [];
-    // o.fit = width of the printed blank (page fraction): a value too long for it stays on one line, first smaller
-    // (down to 7px, still readable on paper), then condensed sideways for the rest
-    const put = (x, y, text, o = {}) => {
-      if (x == null || y == null || text == null || String(text).trim() === '') return;
-      let fs = o.fs || 0, sx = 1;
-      if (o.fit) {
-        const w = textW(String(text), 10.5), room = o.fit * W;
-        if (w > room) { fs = Math.max(7, 10.5 * room / w); sx = Math.min(1, room / (w * fs / 10.5)); }
-      }
-      const squeeze = sx < 1 ? `;transform:translate(${o.c ? '-50%' : '0'},-96%) scaleX(${sx.toFixed(3)});transform-origin:${o.c ? '50%' : '0'} 0` : '';
-      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.box ? ' mid' : ''}${o.ng ? ' ng' : ''}${o.s ? ' s' : ''}${o.off || offRow ? ' off' : ''}" style="left:${pct(x)};top:${pct(y)}${fs ? `;font-size:${fs.toFixed(1)}px` : ''}${squeeze}">${esc(text)}</span>`);
-    };
-    const field = (p, text) => { if (p) put(p[0], p[1], text, { fit: p[2] }); };
-    const ring = (m) => { if (m) parts.push(`<span class="pring" style="left:${pct(m[0])};top:${pct(m[1])};width:${((m[2] + 0.02) * W).toFixed(1)}px"></span>`); };
-    const tick = (x, y) => put(x, y, '✓', { c: 1 });
-    const hd = L.hdr, ft = L.foot;
-
-    // Header
-    // Split values into the printed segments: ___ - ___ - ___ - ___ , __/__/__ , __ : __
-    const segs = (u, parts, fr) => { if (!u) return; parts.forEach((p, k) => put(u[0] + u[2] * fr[k], u[1], p, { c: 1 })); };
-    const mParts = h.machine.split('-');
-    if (hd.machine) { if (mParts.length >= 2 && mParts.length <= 4) segs(hd.machine, mParts, [0.12, 0.38, 0.63, 0.88]); else put(hd.machine[0] + 0.004, hd.machine[1], h.machine); }
-    field(hd.factory, h.factory);
-    if (hd.date) segs(hd.date, h.date.split('-').reverse(), [0.15, 0.48, 0.8]);
-    if (hd.time) segs(hd.time, h.time.split(':'), [0.25, 0.78]);
-    field(hd.panel, h.panel);
-    (f.models || []).forEach(m => field(hd.models[m.toLowerCase()] || hd.models[''], h.models[m]));
-    const mark = (k, i = 0) => ring((hd.marks[k] || [])[i]);
-    // Machine type: a tick in the box beside its label (boxes found by tools/find_boxes.js); a ring if no box was found
-    if (f.subtypes && f.subtypes.length > 1) {
-      const bx = ((hd.boxes || {})[h.subtype] || [])[0];
-      if (bx) put(bx[0], bx[1], '✓', { c: 1, box: 1 }); else mark(h.subtype);
-    }
-    mark(h.job);
-    if (h.job === 'pm') mark(h.period);
-    // Pump / valve state (WP): a tick in the box before เปิด or ปิด on its own row; a ring if no box was found
-    if (f.pumpState) [h.pumpState, h.valveState].forEach((s, i) => {
-      const bx = ((hd.boxes || {})[s] || [])[i];
-      if (bx) put(bx[0], bx[1], '✓', { c: 1, box: 1 }); else mark(s, i);
-    });
-
-    // Section 1: measured values, one sheet row per item (in sheet order)
-    // An item outside the chosen job / PM round prints "-" in every box it has, so the sheet shows it was not due
-    const dash = (it) => Object.fromEntries([...cellsOf(it, h).filter(c => c.k !== 'rla').map(c => c.k), 'b_avg', 'a_avg', 'avgTime', 'avgDosing'].map(k => [k, '-']));
-    const sheetItems = f.m.filter(i => i.type !== 'vunb');
-    const shades = [];
-    offRow = false;   // set while a section 1 row outside the round is being placed: its "-" marks print light
-    const shade = (b) => { if (b && b.every(isFinite)) shades.push(`<div class="poff" style="left:calc(${pct(b[0])} + 2px);top:calc(${pct(b[1])} + 2px);width:calc(${pct(b[2] - b[0])} - 4px);height:calc(${pct(b[3] - b[1])} - 4px)"></div>`); };
-    sheetItems.forEach((it, idx) => {
-      offRow = !isNeeded(f, it, h);
-      if (offRow) shade((L.bands1 || [])[idx]);
-      const vals = isNeeded(f, it, h) ? rec.v[it.id] : dash(it); const y = L.rows1[idx];
-      if (!vals || y == null) return;
-      const ng = (k) => judge(it, k, vals[k], vals, h) === 'ng';
-      const P = (x, yy, k, c = 1) => put(x, yy, vals[k], { c, ng: ng(k), s: !c });
-      const inl = L.inl.filter(a => Math.abs(a.y - y) < 0.005);
-      const below = (re, n) => L.inl.filter(a => re.test(a.s) && a.y >= y - 0.004).sort((a, b) => a.y - b.y).slice(0, n);
-      switch (it.type) {
-        case 'value':
-          if (it.ba !== 'after') P(L.cols.b, y, 'b');
-          P(L.cols.a, y, 'a'); break;
-        case 'v3': case 'i3': {
-          const keys = it.type === 'v3' ? (h.phase === '1' ? ['L-N'] : ['RS', 'ST', 'RT', 'RN']) : (h.phase === '1' ? ['I'] : ['R', 'S', 'T']);
-          if (it.ba === 'both') {
-            // Cells print as "  /  /  ": put the three phases between the slashes when they are known
-            const sl = inl.filter(a => a.s === '/').map(a => a.x).sort((a, b) => a - b);
-            ['b', 'a'].forEach((p, pi) => {
-              const pair = sl.length >= 4 ? sl.slice(pi * 2, pi * 2 + 2) : null;
-              keys.forEach((k, j) => {
-                // even spacing: each value sits half a slash-gap out from its slash, the middle one between them
-                const g = pair ? pair[1] - pair[0] : 0;
-                const x = keys.length === 1 ? L.cols[p] : pair ? [pair[0] - g / 2, (pair[0] + pair[1]) / 2, pair[1] + g / 2][j] : L.cols[p] + (j - 1) * 0.036;
-                put(x, y, vals[`${p}_${k}`], { c: 1, s: 1, ng: ng(`${p}_${k}`) });
-              });
-            });
-          } else if (it.slash && inl.filter(a => a.s === '/').length >= 2 && keys.length > 1) {
-            // One after-work cell printed as "  /  /  ": phases go before, between and after the two slashes
-            const [s1, s2] = inl.filter(a => a.s === '/').map(a => a.x).sort((a, b) => a - b);
-            const g = s2 - s1;
-            keys.slice(0, 3).forEach((k, j) => P([s1 - g / 2, (s1 + s2) / 2, s2 + g / 2][j], y, `a_${k}`, 1));
-          } else {
-            const base = inl.find(a => /^(RS|R):$/.test(a.s));
-            keys.forEach((k, j) => {
-              const lab = k === 'L-N' ? 'RS' : k === 'I' ? 'R' : k;
-              const a = inl.find(a => a.s.replace(/\s/g, '') === `${lab}:`);
-              // a small gap after the printed label ("RS:") so the value doesn't touch it
-              const x = a ? a.e + 0.005 : base ? base.e + 0.005 + j * (it.type === 'v3' ? 0.045 : 0.06) : L.cols.b + j * 0.045;
-              // Labels printed close together (RS:___ST:___): shrink the value so it ends before the next label
-              const next = inl.filter(b => b.x > x).sort((p, q) => p.x - q.x)[0];
-              const room = next ? (next.x - x - 0.002) * W : Infinity, len = String(vals[`a_${k}`] || '').length;
-              const fs = len ? Math.max(6.5, Math.min(8.5, room / (len * 0.6))) : 8.5;
-              put(x, y, vals[`a_${k}`], { ng: ng(`a_${k}`), s: 1, fs: fs < 8.5 ? fs : 0 });
-            });
-          }
-          break;
-        }
-        case 'ins': {
-          const ug = below(/^U-G$/, 1)[0]; const y0 = ug ? ug.y : y;
-          ['U-G', 'V-G', 'W-G'].forEach((k, j) => {
-            const an = L.inl.find(a => a.s === k && Math.abs(a.y - (y0 + j * L.rowH)) < 0.006);
-            P((L.cols.b + L.cols.a) / 2, an ? an.y : y0 + j * L.rowH, k);
-          });
-          break;
-        }
-        case 'belt': {
-          const ans = below(/^[1-3] ?:$/, it.n);
-          for (let j = 0; j < it.n; j++) { const an = ans[j]; P(an ? an.e + 0.012 : L.cols.b, an ? an.y : y + j * L.rowH, `l${j + 1}`, 0); }
-          break;
-        }
-        case 'refr': {
-          const lo = inl.find(a => /^Low/.test(a.s)), hi = inl.find(a => /High :$/.test(a.s));
-          P(lo ? lo.e + 0.007 : L.cols.b, y, 'lo', 0); P(hi ? hi.e + 0.007 : L.cols.a, y, 'hi', 0); break;
-        }
-        case 'pair': {
-          const ans = inl.filter(a => /^(Comp\.|CDU)\d ?:$/.test(a.s)).sort((a, b) => a.x - b.x);
-          it.labels.forEach((l, j) => P(ans[j] ? ans[j].e + 0.009 : L.cols.b + j * 0.1, y, `p${j + 1}`, 0)); break;
-        }
-        case 'vibTemp': {
-          const t = L.tbl.vt; if (!t) break;
-          for (let k = 1; k <= it.n; k++) { P(t.v, t.y0 + k * t.rh, `v${k}`); P(t.t, t.y0 + k * t.rh, `t${k}`); }
-          break;
-        }
-        case 'grid': {
-          const g = L.tbl.grid; if (!g) break;
-          const off = MANUAL['grid' + rec.form] || MANUAL.gridAHU;
-          ['b', 'a'].forEach(p => { for (let r = 1; r <= 4; r++) for (let c = 1; c <= 4; c++) P(g[p][0] + off[p].dx[c - 1], g[p][1] + off[p].dy[r - 1], `${p}${r}${c}`); });
-          P(L.cols.b, y, 'b_avg'); P(L.cols.a, y, 'a_avg'); break;
-        }
-        case 'dosing': {
-          const d = L.tbl.dose; if (!d) break;
-          [10, 20, 30, 40, 50].forEach(ml => { const yy = d.rows[ml]; if (yy == null) return; P(d.t1, yy, `t1_${ml}`); P(d.t2, yy, `t2_${ml}`); });
-          P(...d.avgTime, 'avgTime'); P(...d.avgDosing, 'avgDosing'); break;
-        }
-        case 'choice':
-          if (L.tbl.choice && L.tbl.choice[vals.v]) tick(...L.tbl.choice[vals.v]); break;
-        case 'align': {
-          const m = MANUAL[rec.form] && MANUAL[rec.form].align; if (!m) break;
-          [0, 1, 2, 3].forEach(j => { P(...m.g[j], `g${j}`); P(...m.o[j], `o${j}`); }); break;
-        }
-      }
-    });
-    offRow = false;
-    const vu = f.m.find(i => i.type === 'vunb'), vm = MANUAL[rec.form] && MANUAL[rec.form].vunb;
-    if (vu && vm && rec.v[vu.id]) ['vavg', 'vunb', 'tinc'].forEach((k, j) => put(vm.x, vm.y[j], rec.v[vu.id][k], { c: 1 }));
-
-    // Section 2: tick the chosen column; a task outside the round gets "-" under ไม่ได้ทำ
-    (f.t || []).forEach((t, i) => {
-      if (L.rows2[i] == null) return;
-      if (!isNeeded(f, t, h)) { shade((L.bands2 || [])[i]); put(L.tcols.skip, L.rows2[i], '-', { c: 1, off: 1 }); return; }
-      const s = rec.t[t.id]; if (s) tick(L.tcols[s], L.rows2[i]);
-    });
-
-    // Footer
-    const note = [h.comment, ...Object.entries(rec.tn || {}).map(([id, n]) => `ข้อ ${id} ไม่เสร็จ: ${n}`)].filter(Boolean).join(' · ');
-    if (note) parts.push(`<div class="pcomment" style="left:${pct(ft.commentX)};top:${pct(ft.comment[1] - 0.016)};width:${pct(0.95 - ft.commentX)};text-indent:${((ft.comment[0] - ft.commentX) * W).toFixed(1)}px;line-height:${(0.0172 * H).toFixed(1)}px">${esc(note)}</div>`);
-    // Layout y is the box's bottom edge: lift the name so it sits inside the signature box, not on its line
-    put(ft.service[0], ft.service[1] - 0.011, h.inspector, { c: 1, fs: Math.max(7, Math.min(10.5, 0.068 * W / (h.inspector.length * 0.6))) });
-    // Ref no boxes: each value is centred in its box and shrinks to the inner width less a small margin
-    // (refW = [width, centre x], found by tools/find_boxes.js; sheets without boxes keep the caption's centre)
-    const ref = (k, text) => {
-      const b = ft.refW && ft.refW[k];
-      if (ft[k]) put(b ? b[1] : ft[k][0], ft[k][1], text, { c: 1, fit: b ? b[0] - 0.01 : undefined });
-    };
-    ref('mc', h.machine);
-    ref('period', h.job === 'pm' ? h.period : h.job === 'repair' ? 'ซ่อม' : 'Insp.');
-    ref('date', h.date.split('-').reverse().join('/'));
-    return { html: `<div class="psheet" style="width:${W.toFixed(1)}px;height:${H.toFixed(1)}px"><img class="pbg" src="${L.bg}" alt="">${shades.join('')}${parts.join('')}</div>`, W, H, L };
-  }
-
-  // =====================================================================
   // Printout in the "style 1" layout (the user's CE97F1029_style1.html), for every form, drawn from the saved data.
   // Values in navy, out-of-range in red; rows outside the job / PM round stay listed in grey, as on that sheet.
   // =====================================================================
@@ -1835,9 +1613,13 @@
       const fill = (cells, t) => `<div class="fill">${t ? `<span>${esc(t)}</span>` : ''}${cells.map(c => `<span>${esc(c.l)}: ${v(c)}${c.u && vals[c.k] ? ` ${esc(c.u)}` : ''}</span>`).join('')}</div>`;
       const calc = need ? computed(it, vals, h, rec.v).filter(c => isFinite(c.v)) : [];
       const calcFill = calc.length ? `<div class="fill">${calc.map(c => `<span>${esc(c.l)}: ${pen(fmt(c.v), c.st === 'ng')} ${esc(c.u)}</span>`).join('')}</div>` : '';
-      const spec = esc(specText(it, h));
+      // the spec as short as the paper sheet words it: the long ISO / tolerance wording lives in the reference cards
+      const spec = esc(it.judge === 'iso' || it.type === 'vibTemp' ? 'ตารางมาตรฐาน3' : it.type === 'v3' ? `±${it.tol}% ของ Std.` : specText(it, h));
       const head = (n) => `<td${n > 1 ? ` rowspan="${n}"` : ''} style="vertical-align:top">${esc(it.id)} ${esc(it.label)}</td><td class="c"${n > 1 ? ` rowspan="${n}"` : ''}>${spec}</td>`;
       if (it.type === 'ok' || it.type === 'choice') return `<tr${off}>${head(1)}<td colspan="2">${pen(vals.v, vals.v === 'ผิดปกติ')}</td><td class="rm"></td></tr>`;
+      // belt lines and insulation readings: one line each, as on the sheet — label left, value, unit at the right edge
+      if (it.type === 'belt') return Array.from({ length: it.n }, (_, i) => `<tr${off}>${i === 0 ? head(it.n) : ''}<td colspan="2">เส้นที่ ${i + 1} : ${v({ k: `l${i + 1}` })}<span style="float:right">Kg.</span></td>${i === 0 ? `<td class="rm" rowspan="${it.n}"></td>` : ''}</tr>`).join('');
+      if (it.type === 'ins') return ['U-G', 'V-G', 'W-G'].map((k, i) => `<tr${off}>${i === 0 ? `<td rowspan="3" style="vertical-align:top">${esc(it.id)} ${esc(it.label)}</td>` : ''}<td class="c">${esc(it.spec)} &nbsp; ${k}</td><td colspan="2" class="c">${v({ k })}<span style="float:right">(MΩ)</span></td>${i === 0 ? '<td class="rm" rowspan="3"></td>' : ''}</tr>`).join('');
       if (it.type === 'vunb') return `<tr${off}>${head(1)}<td colspan="2">${calcFill}</td><td class="rm"></td></tr>`;
       const rows = rowsOf(it, h), cells = rows.flatMap(r => r.c);
       const rla = cells.find(c => c.k === 'rla'), note = rla && vals.rla ? `RLA ${pen(vals.rla)} A` : '';
@@ -1909,8 +1691,7 @@
     });
   }
 
-  // Printing uses the new style 1 sheet (A4, any form); the scanned original stays one tap away for the PM forms
-  const PRINT_STYLE = 'insp.printStyle';
+  // Printing: the style 1 sheet on A4, for any form
   function showPrint(id) {
     form = null; S = null;
     const rec = store.get(HIST, []).find(r => r.id === id);
@@ -1919,36 +1700,21 @@
       $('app').innerHTML = `<section class="group"><div class="card"><p class="empty">ไม่พบผลตรวจนี้ในมือถือเครื่องนี้</p></div></section>`;
       return;
     }
-    const old = canPrint(rec.form) && store.get(PRINT_STYLE, 'new') === 'old';
-    const s = old ? buildSheet(rec) : buildStyle1(rec);
-    const page = old ? `${(s.L.page[0] / 72).toFixed(2)}in ${(s.L.page[1] / 72).toFixed(2)}in` : 'A4';
-    $('printHost').innerHTML = `<style>@page { size: ${page}; margin: 0; }</style>${s.html}`;
-    $('app').innerHTML = `<div class="large"><h1>ใบตรวจ ${esc(rec.form)}</h1><p>${old ? 'ข้อมูลที่กรอกลงบนฟอร์มเดิม' : 'ใบตรวจแบบใหม่ A4 จากข้อมูลที่กรอก'} ตัวเลขสีแดง = นอกเกณฑ์ ช่องลายเซ็นเว้นไว้ให้เซ็นจริง</p></div>
-      ${canPrint(rec.form) ? `<section class="group"><div class="seg" role="radiogroup" aria-label="แบบใบพิมพ์">
-        <label><input type="radio" name="pstyle" value="new"${old ? '' : ' checked'}><span>แบบใหม่</span></label>
-        <label><input type="radio" name="pstyle" value="old"${old ? ' checked' : ''}><span>ใบสแกนเดิม</span></label></div></section>` : ''}
+    const s = buildStyle1(rec);
+    $('printHost').innerHTML = `<style>@page { size: A4; margin: 0; }</style>${s.html}`;
+    $('app').innerHTML = `<div class="large"><h1>ใบตรวจ ${esc(rec.form)}</h1><p>ใบตรวจ A4 จากข้อมูลที่กรอก ตัวเลขสีแดง = นอกเกณฑ์ ช่องลายเซ็นเว้นไว้ให้เซ็นจริง</p></div>
       <section class="group"><button type="button" class="btn-block primary" id="doPrint">พิมพ์ / บันทึกเป็น PDF</button>
       <p class="group-f">ในหน้าพิมพ์ เลือกเครื่องพิมพ์ หรือเลือก "บันทึกเป็น PDF" (Android) · กดแชร์แล้วเลือกพิมพ์ จากนั้นถ่างนิ้วที่ตัวอย่างเพื่อได้ PDF (iPhone)</p></section>
       <div class="pprev" id="pprev"><div class="pprev-in" id="pprevIn">${s.html}</div></div>`;
-    $('app').querySelectorAll('input[name="pstyle"]').forEach(r => r.addEventListener('change', () => { store.set(PRINT_STYLE, r.value); showPrint(id); }));
     // the print copy is hidden until printing, so it can't measure itself: it takes the preview's fit
-    if (!old) {
-      fitS1($('pprevIn'));
-      const a = $('pprevIn').querySelector('.s1-in'), b = $('printHost').querySelector('.s1-in');
-      b.style.transform = a.style.transform; b.style.width = a.style.width;
-    }
-    // Without the form picture the printout is bare numbers: say so plainly instead of showing a broken image
-    const bgFailed = () => {
-      if ($('bgErr')) return;
-      $('pprev').insertAdjacentHTML('beforebegin', `<div class="banner" id="bgErr" role="alert"><b>ภาพใบฟอร์มยังไม่อยู่ในเครื่องนี้</b>ต่ออินเทอร์เน็ตแล้วเปิดแอปใหม่ 1 ครั้ง ระบบจะเก็บไว้ให้ใช้ตอนออฟไลน์ ตอนนี้พิมพ์ได้แค่ตัวเลข</div>`);
-    };
-    [$('pprevIn'), $('printHost')].forEach(h => { const im = h.querySelector('img.pbg'); if (im) { im.addEventListener('error', bgFailed, { once: true }); if (im.complete && !im.naturalWidth) bgFailed(); } });
+    fitS1($('pprevIn'));
+    const a = $('pprevIn').querySelector('.s1-in'), b = $('printHost').querySelector('.s1-in');
+    b.style.transform = a.style.transform; b.style.width = a.style.width;
     const fit = () => { const box = $('pprev'); if (!box) return; const k = box.clientWidth / s.W; $('pprevIn').style.transform = `scale(${k})`; box.style.height = `${(s.H * k).toFixed(0)}px`; };
     fit(); window.addEventListener('resize', fit, { once: true });
+    // print once the reference pictures have loaded, or they come out blank
     $('doPrint').addEventListener('click', () => {
-      const img = $('printHost').querySelector('img');
-      const go = () => window.print();
-      if (img && !img.complete) img.addEventListener('load', go, { once: true }); else go();
+      Promise.all([...$('printHost').querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; }))).then(() => window.print());
     });
     window.scrollTo(0, 0);
   }
