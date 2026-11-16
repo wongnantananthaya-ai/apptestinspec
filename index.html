@@ -110,6 +110,10 @@
     .group-f { padding: 7px 16px 0; font-size: var(--fs-2); color: var(--label-2); }
     .card { background: var(--card); border-radius: var(--r); overflow: hidden; border: 1px solid var(--card-line); box-shadow: 0 1px 2px rgba(30, 60, 90, 0.05); }
     .card + .card { margin-top: 12px; }
+    /* A list of items (sections 1-3): every item is its own card with a gap between, so where one ends is plain */
+    .card.list { background: none; border: none; box-shadow: none; border-radius: 0; overflow: visible; }
+    .card.list > .item, .card.list > .task, .card.list > .empty { background: var(--card); border: 1px solid var(--card-line); border-radius: var(--r); box-shadow: 0 1px 2px rgba(30, 60, 90, 0.05); }
+    .card.list > * + * { margin-top: 10px; }
 
     /* Rows with an inset hairline separator */
     .row { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 10px 16px; text-align: left; }
@@ -156,7 +160,7 @@
 
     /* ---------- Measurement item ---------- */
     .item { padding: 16px; scroll-margin-top: var(--head); scroll-margin-bottom: 110px; }
-    .item + .item { border-top: 0.5px solid var(--sep); }
+    .card:not(.list) > .item + .item { border-top: 0.5px solid var(--sep); }
     .item.off { opacity: 0.5; }
     .it-head { display: flex; align-items: flex-start; gap: 10px; }
     .it-no { flex-shrink: 0; min-width: 2.4em; font-weight: 600; font-size: var(--fs-1); line-height: 1.45; color: var(--svc, var(--label-2)); font-variant-numeric: tabular-nums; }
@@ -249,7 +253,7 @@
 
     /* ---------- Tasks ---------- */
     .task { padding: 16px; scroll-margin-top: var(--head); scroll-margin-bottom: 110px; }
-    .task + .task { border-top: 0.5px solid var(--sep); }
+    .card:not(.list) > .task + .task { border-top: 0.5px solid var(--sep); }
     .task.off { opacity: 0.5; }
     .task.missing .it-title { color: var(--ng); }
     .task.missing .it-title::after { content: ' · ยังไม่ได้เลือก'; font-weight: 500; font-size: var(--fs-2); }
@@ -271,7 +275,6 @@
     .auto-tag { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--svc-tint, var(--fill)); color: var(--svc, var(--accent)); font-size: var(--fs-2); font-weight: 600; }
     .auto-why { padding: 0 16px 12px; font-size: var(--fs-2); color: var(--label-2); }
 
-    .show-all { display: block; width: 100%; margin-top: 12px; min-height: 44px; border-radius: var(--r); color: var(--accent); font-size: var(--fs-1); }
     .empty { padding: 14px 16px; color: var(--label-2); }
 
     /* Inline problem banner (form-level) */
@@ -333,13 +336,68 @@
     #printHost { display: none; }
     .psheet { position: relative; overflow: hidden; background: #FFFFFF; font-family: var(--font); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .pbg { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .pv { position: absolute; font-size: 10.5px; font-weight: 600; line-height: 1; white-space: nowrap; color: #1D3FAF; transform: translate(0, -96%); }
+    /* Values written onto the sheet: one calm navy "pen" ink, medium weight, figures of equal width so columns line up;
+       out-of-range in a deep red that still reads in black-and-white printing */
+    .psheet { --ink: #1E3A8A; --ink-ng: #B42318; }
+    .pv { position: absolute; font-size: 10.5px; font-weight: 500; line-height: 1; white-space: nowrap; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; transform: translate(0, -96%); }
     .pv.c { transform: translate(-50%, -96%); }
-    .pv.mid { transform: translate(-50%, -50%); font-size: 13px; }   /* y is the box centre, not a text baseline */
-    .pv.ng { color: #C81E1E; }
-    .pv.s { font-size: 8.5px; letter-spacing: -0.02em; }
-    .pring { position: absolute; height: 15px; border: 1.4px solid #1D3FAF; border-radius: 50%; transform: translate(-50%, -78%); }
-    .pcomment { position: absolute; font-size: 10px; font-weight: 600; color: #1D3FAF; white-space: normal; }
+    .pv.mid { transform: translate(-50%, -50%); font-size: 13px; font-weight: 600; }   /* y is the box centre, not a text baseline */
+    .pv.ng { color: var(--ink-ng); font-weight: 600; }
+    .pv.s { font-size: 9px; letter-spacing: 0; }
+    .pring { position: absolute; height: 15px; border: 1.2px solid var(--ink); border-radius: 50%; transform: translate(-50%, -78%); }
+    .pcomment { position: absolute; font-size: 10px; font-weight: 500; color: var(--ink); white-space: normal; letter-spacing: 0.01em; }
+    /* A row outside the chosen job / PM round: a pale grey wash over the row, inset so the table lines stay sharp,
+       which fades the printed words to light grey (bands found by tools/find_bands.js); its "-" marks print light too */
+    .poff { position: absolute; background: rgba(250, 251, 252, 0.66); }
+    .pv.off { color: #9AA3AD; }
+    /* ---------- Printout in the "style 1" layout (CE97F1029_style1.html), drawn from the saved data ---------- */
+    /* One A4 page: 794 × 1123 px at 96 dpi; .s1-in shrinks to fit when a long form runs over (fitS1) */
+    .s1 { position: relative; width: 794px; height: 1123px; overflow: hidden; background: #FFFFFF; color: #111; font-family: "Sarabun", "Tahoma", "Leelawadee UI", "Segoe UI", Arial, sans-serif; font-size: 10.5px; line-height: 1.28; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .s1-in { position: absolute; left: 26px; top: 23px; width: 742px; transform-origin: top left; }
+    .s1 .hdr { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; border-bottom: 2px solid #D91E2A; padding-bottom: 4px; margin-bottom: 5px; }
+    .s1 .logo { display: flex; flex-direction: column; line-height: 1; }
+    .s1 .logo b { font-family: "Arial Black", "Helvetica Neue", Arial, sans-serif; font-size: 18px; font-weight: 900; font-style: italic; color: #D91E2A; letter-spacing: -0.5px; }
+    .s1 .logo small { font-size: 5.5px; color: #D91E2A; letter-spacing: 0.4px; font-weight: 700; margin-top: 1px; }
+    .s1 .title { text-align: center; font-size: 13.5px; font-weight: 800; letter-spacing: 0.2px; text-transform: uppercase; }
+    .s1 .code { font-size: 15.5px; font-weight: 800; letter-spacing: 0.4px; white-space: nowrap; }
+    .s1 table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 6px; font-size: 10px; overflow-wrap: anywhere; }
+    .s1 td, .s1 th { border: 1px solid #444; padding: 2px 5px; vertical-align: middle; }
+    .s1 th { background: #E2E5E9; font-weight: 700; text-align: center; }
+    .s1 .meta td { padding: 2.5px 5px; }
+    .s1 .ml { font-weight: 700; background: #E9ECEF; white-space: nowrap; }
+    .s1 .checks { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; }
+    .s1 .chk { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; white-space: nowrap; }
+    .s1 .bx { display: inline-grid; place-items: center; width: 11px; height: 11px; border: 1.2px solid #222; background: #FFFFFF; font-size: 10px; line-height: 1; font-weight: 700; color: #1E3A8A; vertical-align: middle; }
+    .s1 .sec { font-size: 11px; font-weight: 800; padding: 1.5px 0 2.5px 6px; border-left: 3.5px solid #D91E2A; margin-bottom: 2px; }
+    .s1 .c { text-align: center; }
+    /* remark cells (หมายเหตุ): their words centred, readings in them too */
+    .s1 .rm { text-align: center; }
+    .s1 .rm .fill { justify-content: center; }
+    .s1 .r { text-align: right; }
+    .s1 .nw { white-space: nowrap; }
+    .s1 .pen { color: #1E3A8A; font-weight: 600; }
+    .s1 .ng { color: #B42318; font-weight: 700; }
+    .s1 .fill { display: flex; justify-content: space-between; gap: 6px; font-size: 9.5px; }
+    .s1 .fill span { flex: 1; border-bottom: 1px dotted #888; padding-bottom: 1px; white-space: nowrap; }
+    /* rows outside the chosen job / PM round: grey words, like the style 1 sheet */
+    .s1 tr.off td, .s1 tr.off td .pen { color: #A8A8A8 !important; }
+    .s1 tr.off .fill span { border-bottom-color: #CCC; }
+    .s1 tr.off .bx { border-color: #BBB; }
+    .s1 .refs { display: grid; gap: 6px; margin-bottom: 6px; align-items: stretch; }
+    .s1 .s1card { border: 1px solid #444; padding: 3px; height: 165px; display: flex; flex-direction: column; }
+    .s1 .s1card-t { font-size: 9.8px; font-weight: 800; text-align: center; border-bottom: 1px solid #444; padding: 2px 0; margin-bottom: 3px; background: #E2E5E9; }
+    .s1 .s1card-i { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+    .s1 .s1card-i img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .s1 .s1card-i table { margin: 0; font-size: 8.5px; }
+    .s1 .s1card-i td, .s1 .s1card-i th { padding: 1px 3px; text-align: center; }
+    .s1 .cmt { border: 1px solid #444; padding: 4px 6px; margin-bottom: 5px; }
+    .s1 .cmt-l { font-weight: 700; font-size: 9.8px; margin-bottom: 3px; }
+    .s1 .cmt-v { min-height: 13px; border-bottom: 1px dotted #666; padding-bottom: 1px; }
+    .s1 .notes { font-size: 9px; line-height: 1.3; margin-bottom: 4px; }
+    .s1 .sigs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .s1 .sig { border: 1px solid #444; height: 40px; display: flex; flex-direction: column; justify-content: flex-end; padding: 3px 6px; text-align: center; font-size: 9.2px; font-weight: 600; }
+    .s1 .sig-v { border-bottom: 1px dotted #333; margin-bottom: 2px; min-height: 12px; font-weight: 600; color: #1E3A8A; }
+    .s1 .motto { font-weight: 800; margin-top: 5px; font-size: 9.8px; text-align: center; }
     .pprev { margin-top: 16px; overflow: hidden; border: 1px solid #E5E5EA; border-radius: 8px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
     .pprev-in { transform-origin: top left; }
     @media print {
@@ -853,7 +911,7 @@
       h: { machine: '', factory: last.factory || '', date: todayIso(), time: nowHm(), subtype: f.subtypes && f.subtypes.length === 1 ? f.subtypes[0] : '',
            job: f.kind === 'daily' ? 'daily' : '', period: '', models: {}, panel: '', phase: '3', vclass: '', refr: '', vpModel: '',
            pumpState: '', valveState: '', inspector: last.inspector || '', comment: '' },
-      v: {}, t: {}, tn: {}, rr: {}, autoWhy: '', showAll: false
+      v: {}, t: {}, tn: {}, rr: {}, autoWhy: ''
     };
   }
   const editKey = (id) => `insp.edit.${id}`;
@@ -1007,7 +1065,7 @@
     if (!S) {
       const v = JSON.parse(JSON.stringify(rec.v || {}));
       const rr = Object.fromEntries(Object.entries(rec.rr || {}).map(([k, x]) => { const { st, ...rest } = x; return [k, rest]; }));
-      S = { h: { ...blankState(form).h, ...rec.h, models: { ...(rec.h.models || {}) } }, v, t: { ...rec.t }, tn: { ...rec.tn }, rr, autoWhy: '', showAll: false };
+      S = { h: { ...blankState(form).h, ...rec.h, models: { ...(rec.h.models || {}) } }, v, t: { ...rec.t }, tn: { ...rec.tn }, rr, autoWhy: '' };
     }
     S.editId = id;
     setNav(`แก้ไข ${form.id} · ${rec.h.machine}`, `${rec.h.date} ${rec.h.time || ''}`, true, 'ผลตรวจ'); setFormChrome(true);
@@ -1124,7 +1182,7 @@
     const st = S.t[t.id] || '';
     return `<div class="task${needed ? '' : ' off'}" data-task="${esc(t.id)}">
       <div class="it-head"><span class="it-no">${esc(t.id)}</span><div class="it-text"><div class="it-title">${esc(t.label)}</div>${needed ? '' : '<div class="it-spec">ไม่อยู่ในรอบนี้</div>'}</div></div>
-      ${segHtml(`t_${t.id}`, [['done', '✓ เสร็จ', 'done'], ['notdone', '✕ ไม่เสร็จ', 'notdone'], ['skip', '– ไม่ได้ทำ', 'skip']], st)}
+      ${segHtml(`t_${t.id}`, [['done', '✓ เสร็จ', 'done'], ['notdone', '✕ ไม่เสร็จ', 'notdone']], st)}
       <textarea class="note" data-tn="${esc(t.id)}" placeholder="เหตุผล / สิ่งที่พบ (จำเป็น)" aria-label="เหตุผลที่ข้อ ${esc(t.id)} ไม่เสร็จ" ${st === 'notdone' ? '' : 'hidden'}>${esc(S.tn[t.id] || '')}</textarea>
     </div>`;
   }
@@ -1165,15 +1223,16 @@
   function rrHtml() {
     const rr = RR[form.id];
     if (!rr) return '';
-    const list = rrRows(form.id), shown = list.filter(x => S.showAll || rrNeeded(form, x.row, S.h));
+    const list = rrRows(form.id), shown = list.filter(x => rrNeeded(form, x.row, S.h));
     return `<section class="group" data-sec="3 Review"><h2 class="group-h"><span>3 · Review-Revise</span><span class="num">แนะนำ · ไม่บังคับ</span></h2>
       <div class="card">
         <div class="stack rr-find"><p class="hint" style="margin:0 0 4px">ข้อแนะนำจากประวัติเครื่องเสีย ไม่นับรวมในผลตรวจ เว้นว่างแล้วบันทึกได้</p>
           <details class="ref"><summary>3.1 ผลทบทวนประวัติเสียเรื้อรัง (${rr.find.length})</summary>
           <ul>${rr.find.map(([b, t]) => `<li><b>${esc(b)}</b> ${esc(t)}</li>`).join('')}</ul></details>
           ${rr.draft ? '<p class="hint">เนื้อหาหัวข้อนี้เป็นร่าง รอวิศวกรทบทวน</p>' : ''}</div>
-        <div class="stack"><span class="stack-label">3.2 เกณฑ์ตรวจพิเศษที่แนะนำ</span></div>
-        ${shown.length ? shown.map(rrRowHtml).join('') : '<p class="empty">รอบนี้ไม่มีเกณฑ์พิเศษที่แนะนำ</p>'}</div></section>`;
+        </div>
+      <h3 class="group-h" style="padding-top:14px">3.2 เกณฑ์ตรวจพิเศษที่แนะนำ</h3>
+      <div class="card list">${shown.length ? shown.map(rrRowHtml).join('') : '<p class="empty">รอบนี้ไม่มีเกณฑ์พิเศษที่แนะนำ</p>'}</div></section>`;
   }
 
   function renderForm() {
@@ -1183,17 +1242,16 @@
     if (!jobChosen(form, h)) {
       html += `<section class="group"><div class="card"><p class="empty">เลือกประเภทงาน${form.kind === 'pm' ? 'และรอบ PM' : ''} แล้วหัวข้อที่ต้องทำในรอบนั้นจะขึ้นมาที่นี่</p></div></section>`;
     } else {
+      // Only what this job / PM round asks for is shown; items outside it never appear in the form
       const need = (x) => isNeeded(form, x, h);
-      const items = form.m.filter(i => S.showAll || need(i));
+      const items = form.m.filter(need);
       html += `<section class="group" data-sec="${form.kind === 'daily' ? 'รายการตรวจ' : '1 ค่าที่วัด'}"><h2 class="group-h"><span>${form.kind === 'daily' ? 'รายการตรวจ' : '1 · ค่าที่วัดได้'}</span><span class="num">${form.m.filter(need).length} ข้อ</span></h2>
-        <div class="card">${items.length ? items.map(i => itemHtml(i, need(i))).join('') : '<p class="empty">รอบนี้ไม่มีข้อที่ต้องวัด</p>'}</div></section>`;
+        <div class="card list">${items.length ? items.map(i => itemHtml(i, need(i))).join('') : '<p class="empty">รอบนี้ไม่มีข้อที่ต้องวัด</p>'}</div></section>`;
       if (form.t) {
-        const ts = form.t.filter(t => S.showAll || need(t));
+        const ts = form.t.filter(need);
         html += `<section class="group" data-sec="2 งาน"><h2 class="group-h"><span>2 · หัวข้อตรวจเช็ค / ทำงาน</span><span class="num">${form.t.filter(need).length} ข้อ</span></h2>
-          <div class="card">${ts.length ? ts.map(t => taskHtml(t, need(t))).join('') : '<p class="empty">รอบนี้ไม่มีหัวข้องาน</p>'}</div></section>`;
+          <div class="card list">${ts.length ? ts.map(t => taskHtml(t, need(t))).join('') : '<p class="empty">รอบนี้ไม่มีหัวข้องาน</p>'}</div></section>`;
       }
-      const hidden = form.m.filter(i => !need(i)).length + (form.t ? form.t.filter(t => !need(t)).length : 0);
-      if (hidden > 0) html += `<button type="button" class="show-all" id="toggleAll">${S.showAll ? 'ซ่อนข้อที่ไม่อยู่ในรอบนี้' : `แสดงข้อที่ไม่อยู่ในรอบนี้ (${hidden})`}</button>`;
       html += rrHtml();
     }
     html += `<section class="group" data-sec="หมายเหตุ"><h2 class="group-h">${form.kind === 'daily' ? 'หมายเหตุ (M/C Stop / Unload)' : 'Other Comment / Alarm Code'}</h2>
@@ -1232,7 +1290,8 @@
         if (st === 'watch') watch.push({ item, l: c.l, v: vals[c.k], u: c.u });
       });
     });
-    // Section 2 is required: every task of the round needs เสร็จ / ไม่เสร็จ / ไม่ได้ทำ picked before saving
+    // Section 2 is required: every task of the round needs เสร็จ or ไม่เสร็จ picked before saving
+    // (ไม่ได้ทำ is no longer offered; older results that used it still read and print as before)
     (form.t || []).filter(t => isNeeded(form, t, h)).forEach(t => {
       total++;
       if (S.t[t.id]) filled++; else missingTasks.push(t);
@@ -1496,7 +1555,7 @@
       ${adviceHtml(rec)}
       ${rec.h.comment ? `<section class="group"><h2 class="group-h">Other Comment / Alarm Code</h2><div class="card"><p class="empty" style="color:var(--label)">${esc(rec.h.comment)}</p></div></section>` : ''}
       <section class="group"><div class="acts" style="display:flex;flex-direction:column;gap:8px">
-        ${canPrint(rec.form) ? `<button type="button" class="btn-block secondary" id="pdf">พิมพ์ใบตรวจ / บันทึกเป็น PDF</button>` : ''}
+        <button type="button" class="btn-block secondary" id="pdf">พิมพ์ใบตรวจ / บันทึกเป็น PDF</button>
         <button type="button" class="btn-block secondary" id="editRec">แก้ไขผลตรวจ</button>
         <button type="button" class="btn-block reset" id="delRec" style="margin-top:0">ลบผลตรวจนี้</button></div></section>`;
     $('pdf')?.addEventListener('click', () => { location.hash = `#/print/${rec.id}`; });
@@ -1516,7 +1575,7 @@
       </div>
       ${findingsHtml(rec)}
       <section class="group"><div class="acts" style="display:flex;flex-direction:column;gap:8px">
-        ${canPrint(rec.form) ? `<button type="button" class="btn-block secondary" id="pdf">พิมพ์ใบตรวจ / บันทึกเป็น PDF</button>` : ''}
+        <button type="button" class="btn-block secondary" id="pdf">พิมพ์ใบตรวจ / บันทึกเป็น PDF</button>
         <button type="button" class="btn-block primary" id="next">ตรวจ ${esc(rec.form)} เครื่องถัดไป</button>
         <button type="button" class="btn-block secondary" id="home">เลือกเครื่องชนิดอื่น</button></div></section>`;
     $('next').addEventListener('click', () => {
@@ -1560,6 +1619,7 @@
     return measureEl.getBoundingClientRect().width;
   }
 
+  let offRow = false;
   function buildSheet(rec) {
     const L = PL[rec.form], f = formById(rec.form), h = rec.h;
     const W = L.page[0] * 96 / 72, H = L.page[1] * 96 / 72;
@@ -1574,7 +1634,7 @@
         if (w > room) { fs = Math.max(7, 10.5 * room / w); sx = Math.min(1, room / (w * fs / 10.5)); }
       }
       const squeeze = sx < 1 ? `;transform:translate(${o.c ? '-50%' : '0'},-96%) scaleX(${sx.toFixed(3)});transform-origin:${o.c ? '50%' : '0'} 0` : '';
-      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.box ? ' mid' : ''}${o.ng ? ' ng' : ''}${o.s ? ' s' : ''}" style="left:${pct(x)};top:${pct(y)}${fs ? `;font-size:${fs.toFixed(1)}px` : ''}${squeeze}">${esc(text)}</span>`);
+      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.box ? ' mid' : ''}${o.ng ? ' ng' : ''}${o.s ? ' s' : ''}${o.off || offRow ? ' off' : ''}" style="left:${pct(x)};top:${pct(y)}${fs ? `;font-size:${fs.toFixed(1)}px` : ''}${squeeze}">${esc(text)}</span>`);
     };
     const field = (p, text) => { if (p) put(p[0], p[1], text, { fit: p[2] }); };
     const ring = (m) => { if (m) parts.push(`<span class="pring" style="left:${pct(m[0])};top:${pct(m[1])};width:${((m[2] + 0.02) * W).toFixed(1)}px"></span>`); };
@@ -1609,7 +1669,12 @@
     // An item outside the chosen job / PM round prints "-" in every box it has, so the sheet shows it was not due
     const dash = (it) => Object.fromEntries([...cellsOf(it, h).filter(c => c.k !== 'rla').map(c => c.k), 'b_avg', 'a_avg', 'avgTime', 'avgDosing'].map(k => [k, '-']));
     const sheetItems = f.m.filter(i => i.type !== 'vunb');
+    const shades = [];
+    offRow = false;   // set while a section 1 row outside the round is being placed: its "-" marks print light
+    const shade = (b) => { if (b && b.every(isFinite)) shades.push(`<div class="poff" style="left:calc(${pct(b[0])} + 2px);top:calc(${pct(b[1])} + 2px);width:calc(${pct(b[2] - b[0])} - 4px);height:calc(${pct(b[3] - b[1])} - 4px)"></div>`); };
     sheetItems.forEach((it, idx) => {
+      offRow = !isNeeded(f, it, h);
+      if (offRow) shade((L.bands1 || [])[idx]);
       const vals = isNeeded(f, it, h) ? rec.v[it.id] : dash(it); const y = L.rows1[idx];
       if (!vals || y == null) return;
       const ng = (k) => judge(it, k, vals[k], vals, h) === 'ng';
@@ -1628,20 +1693,24 @@
             ['b', 'a'].forEach((p, pi) => {
               const pair = sl.length >= 4 ? sl.slice(pi * 2, pi * 2 + 2) : null;
               keys.forEach((k, j) => {
-                const x = keys.length === 1 ? L.cols[p] : pair ? [pair[0] - 0.016, (pair[0] + pair[1]) / 2 + 0.001, pair[1] + 0.018][j] : L.cols[p] + (j - 1) * 0.036;
+                // even spacing: each value sits half a slash-gap out from its slash, the middle one between them
+                const g = pair ? pair[1] - pair[0] : 0;
+                const x = keys.length === 1 ? L.cols[p] : pair ? [pair[0] - g / 2, (pair[0] + pair[1]) / 2, pair[1] + g / 2][j] : L.cols[p] + (j - 1) * 0.036;
                 put(x, y, vals[`${p}_${k}`], { c: 1, s: 1, ng: ng(`${p}_${k}`) });
               });
             });
           } else if (it.slash && inl.filter(a => a.s === '/').length >= 2 && keys.length > 1) {
             // One after-work cell printed as "  /  /  ": phases go before, between and after the two slashes
             const [s1, s2] = inl.filter(a => a.s === '/').map(a => a.x).sort((a, b) => a - b);
-            keys.slice(0, 3).forEach((k, j) => P([s1 - 0.022, (s1 + s2) / 2 + 0.001, s2 + 0.024][j], y, `a_${k}`, 1));
+            const g = s2 - s1;
+            keys.slice(0, 3).forEach((k, j) => P([s1 - g / 2, (s1 + s2) / 2, s2 + g / 2][j], y, `a_${k}`, 1));
           } else {
             const base = inl.find(a => /^(RS|R):$/.test(a.s));
             keys.forEach((k, j) => {
               const lab = k === 'L-N' ? 'RS' : k === 'I' ? 'R' : k;
               const a = inl.find(a => a.s.replace(/\s/g, '') === `${lab}:`);
-              const x = a ? a.e + 0.003 : base ? base.e + 0.003 + j * (it.type === 'v3' ? 0.045 : 0.06) : L.cols.b + j * 0.045;
+              // a small gap after the printed label ("RS:") so the value doesn't touch it
+              const x = a ? a.e + 0.005 : base ? base.e + 0.005 + j * (it.type === 'v3' ? 0.045 : 0.06) : L.cols.b + j * 0.045;
               // Labels printed close together (RS:___ST:___): shrink the value so it ends before the next label
               const next = inl.filter(b => b.x > x).sort((p, q) => p.x - q.x)[0];
               const room = next ? (next.x - x - 0.002) * W : Infinity, len = String(vals[`a_${k}`] || '').length;
@@ -1666,11 +1735,11 @@
         }
         case 'refr': {
           const lo = inl.find(a => /^Low/.test(a.s)), hi = inl.find(a => /High :$/.test(a.s));
-          P(lo ? lo.e + 0.004 : L.cols.b, y, 'lo', 0); P(hi ? hi.e + 0.004 : L.cols.a, y, 'hi', 0); break;
+          P(lo ? lo.e + 0.007 : L.cols.b, y, 'lo', 0); P(hi ? hi.e + 0.007 : L.cols.a, y, 'hi', 0); break;
         }
         case 'pair': {
           const ans = inl.filter(a => /^(Comp\.|CDU)\d ?:$/.test(a.s)).sort((a, b) => a.x - b.x);
-          it.labels.forEach((l, j) => P(ans[j] ? ans[j].e + 0.006 : L.cols.b + j * 0.1, y, `p${j + 1}`, 0)); break;
+          it.labels.forEach((l, j) => P(ans[j] ? ans[j].e + 0.009 : L.cols.b + j * 0.1, y, `p${j + 1}`, 0)); break;
         }
         case 'vibTemp': {
           const t = L.tbl.vt; if (!t) break;
@@ -1696,13 +1765,14 @@
         }
       }
     });
+    offRow = false;
     const vu = f.m.find(i => i.type === 'vunb'), vm = MANUAL[rec.form] && MANUAL[rec.form].vunb;
     if (vu && vm && rec.v[vu.id]) ['vavg', 'vunb', 'tinc'].forEach((k, j) => put(vm.x, vm.y[j], rec.v[vu.id][k], { c: 1 }));
 
     // Section 2: tick the chosen column; a task outside the round gets "-" under ไม่ได้ทำ
     (f.t || []).forEach((t, i) => {
       if (L.rows2[i] == null) return;
-      if (!isNeeded(f, t, h)) { put(L.tcols.skip, L.rows2[i], '-', { c: 1 }); return; }
+      if (!isNeeded(f, t, h)) { shade((L.bands2 || [])[i]); put(L.tcols.skip, L.rows2[i], '-', { c: 1, off: 1 }); return; }
       const s = rec.t[t.id]; if (s) tick(L.tcols[s], L.rows2[i]);
     });
 
@@ -1720,23 +1790,153 @@
     ref('mc', h.machine);
     ref('period', h.job === 'pm' ? h.period : h.job === 'repair' ? 'ซ่อม' : 'Insp.');
     ref('date', h.date.split('-').reverse().join('/'));
-    return { html: `<div class="psheet" style="width:${W.toFixed(1)}px;height:${H.toFixed(1)}px"><img class="pbg" src="${L.bg}" alt="">${parts.join('')}</div>`, W, H, L };
+    return { html: `<div class="psheet" style="width:${W.toFixed(1)}px;height:${H.toFixed(1)}px"><img class="pbg" src="${L.bg}" alt="">${shades.join('')}${parts.join('')}</div>`, W, H, L };
   }
 
+  // =====================================================================
+  // Printout in the "style 1" layout (the user's CE97F1029_style1.html), for every form, drawn from the saved data.
+  // Values in navy, out-of-range in red; rows outside the job / PM round stay listed in grey, as on that sheet.
+  // =====================================================================
+  const S1_TITLE = { EF: 'Exhaust fan / Process exhaust fan', SF: 'Supply fan / FFU', VF: 'Ventilation fan', AHU: 'Air handling unit', PCAC: 'Air condition unit',
+    BP: 'Blower pump', CFP: 'Chemical feed pump', HEX: 'Heat exchanger', VP: 'Vacuum pump (high vacuum)', WP: 'Water pump' };
+  const S1_PERIOD = { '1M': '1 เดือน', '3M': '3 เดือน', '6M': '6 เดือน', '1Y': '1 ปี' };
+  function buildStyle1(rec) {
+    const f = formById(rec.form), h = rec.h, W = 794, H = 1123;
+    const pen = (v, bad) => v == null || String(v).trim() === '' ? '' : `<span class="${bad ? 'ng' : 'pen'}">${esc(v)}</span>`;
+    const bx = (on, label) => `<span class="chk"><span class="bx">${on ? '✓' : ''}</span> ${esc(label)}</span>`;
+    const dmy = (d) => d ? d.split('-').reverse().join('/') : '';
+
+    // Header block: who / where / what, in the sheet's three label-value columns
+    const models = (f.models || []).map(m => [`Model ${m}`, h.models[m] || '']);
+    if (models.length > 3) { const rest = models.splice(2); models.push([`Model ${rest.map(x => x[0].replace('Model ', '')).join(' / ')}`, rest.map(x => x[1] || '____').join(' / ')]); }
+    while (models.length < 3) models.push(['', '']);
+    const types = f.subtypes && f.subtypes.length ? f.subtypes.map(s => bx(h.subtype === s || f.subtypes.length === 1, s)).join('') : '';
+    const jobs = f.kind === 'daily' ? bx(true, 'ตรวจรายวัน')
+      : [...f.periods.map(p => bx(h.job === 'pm' && h.period === p, p)), bx(h.job === 'repair', 'งานซ่อม'), bx(h.job === 'insp', 'Inspection')].join('');
+    const extras = [
+      ...(f.panel ? [['หมายเลขตู้ไฟฟ้า', h.panel]] : []),
+      ...(f.m.some(i => i.judge === 'iso' || i.type === 'vibTemp') ? [['Class เครื่อง', h.vclass ? `Class ${h.vclass}` : '']] : []),
+      ...(f.refr ? [['ชนิดน้ำยา', h.refr]] : []), ...(f.vpModel ? [['รุ่นปั๊ม', h.vpModel]] : []),
+      ...(f.pumpState ? [['สถานะปั๊ม / วาล์วขาออก', [h.pumpState, h.valveState].filter(Boolean).join(' / ')]] : []),
+    ];
+    const lab = (l) => l ? `<td class="ml">${esc(l)}</td>` : '<td class="ml"></td>';
+    const meta = `<table class="meta"><colgroup><col style="width:13%"><col style="width:23%"><col style="width:16%"><col style="width:18%"><col style="width:11%"><col style="width:19%"></colgroup>
+      <tr>${lab(f.kind === 'daily' ? `${f.name} No.` : 'หมายเลขเครื่อง')}<td class="nw">${pen(h.machine)}</td>${lab(models[0][0])}<td>${pen(models[0][1])}</td><td class="ml">ประเภทเครื่อง</td><td><div class="checks">${types}</div></td></tr>
+      <tr>${lab('วันที่ตรวจ / เวลา')}<td class="nw">${pen(dmy(h.date))} &nbsp;เวลา ${pen(h.time || '')}</td>${lab(models[1][0])}<td>${pen(models[1][1])}</td><td class="ml" rowspan="2">${f.kind === 'daily' ? 'งาน' : 'งานบำรุงรักษา'}</td><td rowspan="2"><div class="checks">${jobs}</div></td></tr>
+      <tr>${lab('โรงงาน')}<td>${pen(h.factory)}</td>${lab(models[2][0])}<td>${pen(models[2][1])}</td></tr>
+      ${extras.length ? `<tr>${extras.map(([l, v], i) => `${lab(l)}<td${i === extras.length - 1 ? ` colspan="${6 - extras.length * 2 + 1}"` : ''}>${pen(v)}</td>`).join('')}</tr>` : ''}</table>`;
+
+    // Section 1: one row per item; items with several readings get sub-rows (belt lines, U-G / V-G / W-G, points)
+    const isB = (k) => k === 'b' || k.startsWith('b_') || /^b\d\d$/.test(k);
+    const isA = (k) => k === 'a' || k.startsWith('a_') || /^a\d\d$/.test(k);
+    const rows1 = f.m.map(it => {
+      const need = isNeeded(f, it, h), vals = need ? (rec.v[it.id] || {}) : {}, off = need ? '' : ' class="off"';
+      const v = (c) => pen(vals[c.k], judge(it, c.k, vals[c.k], vals, h) === 'ng');
+      const fill = (cells, t) => `<div class="fill">${t ? `<span>${esc(t)}</span>` : ''}${cells.map(c => `<span>${esc(c.l)}: ${v(c)}${c.u && vals[c.k] ? ` ${esc(c.u)}` : ''}</span>`).join('')}</div>`;
+      const calc = need ? computed(it, vals, h, rec.v).filter(c => isFinite(c.v)) : [];
+      const calcFill = calc.length ? `<div class="fill">${calc.map(c => `<span>${esc(c.l)}: ${pen(fmt(c.v), c.st === 'ng')} ${esc(c.u)}</span>`).join('')}</div>` : '';
+      const spec = esc(specText(it, h));
+      const head = (n) => `<td${n > 1 ? ` rowspan="${n}"` : ''} style="vertical-align:top">${esc(it.id)} ${esc(it.label)}</td><td class="c"${n > 1 ? ` rowspan="${n}"` : ''}>${spec}</td>`;
+      if (it.type === 'ok' || it.type === 'choice') return `<tr${off}>${head(1)}<td colspan="2">${pen(vals.v, vals.v === 'ผิดปกติ')}</td><td class="rm"></td></tr>`;
+      if (it.type === 'vunb') return `<tr${off}>${head(1)}<td colspan="2">${calcFill}</td><td class="rm"></td></tr>`;
+      const rows = rowsOf(it, h), cells = rows.flatMap(r => r.c);
+      const rla = cells.find(c => c.k === 'rla'), note = rla && vals.rla ? `RLA ${pen(vals.rla)} A` : '';
+      const main = rows.filter(r => !r.c.some(c => c.k === 'rla'));
+      // a plain before / after reading: its two columns
+      if (it.type === 'value') {
+        const b = cells.find(c => c.k === 'b'), a = cells.find(c => c.k === 'a');
+        return `<tr${off}>${head(1)}<td class="c">${b ? v(b) : ''}</td><td class="c">${a ? v(a) : ''}</td><td class="rm">${calcFill}</td></tr>`;
+      }
+      // phases before and after (R / S / T): one row, each side in its own column
+      const bRows = main.filter(r => r.c.every(c => isB(c.k))), aRows = main.filter(r => r.c.every(c => isA(c.k)));
+      if (bRows.length && aRows.length && bRows.length + aRows.length === main.length && !it.type.match(/grid/))
+        return `<tr${off}>${head(1)}<td>${bRows.map(r => fill(r.c)).join('')}</td><td>${aRows.map(r => fill(r.c)).join('')}</td><td class="rm">${note}</td></tr>`;
+      // anything else: one sub-row per reading row, the reading spread across both value columns
+      const subs = main.map(r => fill(r.c, r.t && r.t !== 'ค่าหลังทำงาน' ? r.t : ''));
+      if (calcFill) subs.push(calcFill);
+      if (!subs.length) subs.push('');
+      return subs.map((s, i) => `<tr${off}>${i === 0 ? head(subs.length) : ''}<td colspan="2">${s}</td>${i === 0 ? `<td class="rm"${subs.length > 1 ? ` rowspan="${subs.length}"` : ''}>${note}</td>` : ''}</tr>`).join('');
+    }).join('');
+    const sec1 = `<div class="sec">1. การตรวจข้อมูลการทำงานของเครื่อง</div><table><colgroup><col style="width:35%"><col style="width:16%"><col style="width:18%"><col style="width:18%"><col style="width:13%"></colgroup>
+      <thead><tr><th>หัวข้อการตรวจ</th><th>ค่ากำหนดเฉพาะ</th><th>ค่าวัดก่อนทำงาน</th><th>ค่าวัดหลังทำงาน</th><th>หมายเหตุ</th></tr></thead><tbody>${rows1}</tbody></table>`;
+
+    // Section 2: tick boxes; the reason of a task not done goes in its remark
+    const sec2 = f.t ? `<div class="sec">2. หัวข้อตรวจเช็ค/ทำงาน</div><table><colgroup><col><col style="width:52px"><col style="width:52px"><col style="width:150px"></colgroup>
+      <thead><tr><th style="text-align:left">หัวข้อการตรวจเช็ค/ทำงาน</th><th>เสร็จ</th><th>ไม่เสร็จ</th><th>หมายเหตุ</th></tr></thead><tbody>${f.t.map(t => {
+        const need = isNeeded(f, t, h), s = need ? rec.t[t.id] : '', why = need && s === 'notdone' ? (rec.tn || {})[t.id] : '';
+        return `<tr${need ? '' : ' class="off"'}><td>${esc(t.id)} ${esc(t.label)}</td><td class="c"><span class="bx">${s === 'done' ? '✓' : ''}</span></td><td class="c"><span class="bx">${s === 'notdone' ? '✓' : ''}</span></td><td class="rm">${pen(why, true)}</td></tr>`;
+      }).join('')}</tbody></table>` : '';
+
+    // Advice entries of section 3, when any were filled
+    const rrAll = (RR[rec.form] || {}).rows || [];
+    const rr = Object.entries(rec.rr || {}).map(([id, x]) => {
+      const row = rrAll[+id.split('.')[2] - 1];
+      const typed = row && row.cells ? row.cells.map(c => x[c.k] ? `${c.l} ${x[c.k]}${c.u ? ' ' + c.u : ''}` : '').filter(Boolean).join(' · ') : (x.r === 'ng' ? 'ผิดปกติ' : x.r === 'ok' ? 'ปกติ' : '');
+      return `<tr><td>${esc(id)} ${esc(row ? row.l : '')}</td><td>${pen(typed, x.st === 'ng' || x.r === 'ng')}</td><td class="rm">${esc(x.n || '')}</td></tr>`;
+    }).join('');
+    const sec3 = rr ? `<div class="sec">3. Review-Revise (แนะนำ)</div><table><colgroup><col style="width:45%"><col><col style="width:25%"></colgroup>${rr}</table>` : '';
+
+    // Reference cards: the diagrams the items point to, then the sheet's standard tables
+    const tbl = (head, rows) => `<table><tr>${head.map(x => `<th>${esc(x)}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</table>`;
+    const cards = [...new Set(f.m.map(i => i.fig).filter(Boolean))].map(k => [FIGS[k].cap.split(' (')[0], `<img src="${FIGS[k].src}" alt="">`]);
+    [...new Set(f.m.map(i => i.ref).filter(Boolean))].forEach(r => cards.push(
+      r === 'iso' ? ['ตารางมาตรฐาน3 (ISO 10816)', '<img src="img/iso_10816.png" alt="">']
+      : r === 'belt' ? ['ตารางมาตรฐาน2', '<img src="img/belt_table.png" alt="">']
+      : r === 'refr' ? ['ตารางมาตรฐาน1 · น้ำยา', tbl(['น้ำยา', 'ดูด °C', 'ดูด psi', 'จ่าย °C', 'จ่าย psi'], Object.entries(REFR).map(([k, x]) => [k, x.sT.join('–'), x.sP.join('–'), x.dT.join('–'), x.dP.join('–')]))]
+      : ['ตารางมาตรฐาน4 · Flow', tbl(['Model', 'l/min', 'm³/hr'], Object.entries(VP_FLOW).map(([k, x]) => [k, ...x]))]));
+    const refs = cards.length ? `<div class="refs" style="grid-template-columns:repeat(${Math.min(cards.length, 3)},1fr)">${cards.map(([t, body]) => `<div class="s1card"><div class="s1card-t">${esc(t)}</div><div class="s1card-i">${body}</div></div>`).join('')}</div>` : '';
+
+    // Footer: comment, the scope of each round, signatures, motto
+    const note = [h.comment, ...Object.entries(rec.tn || {}).map(([id, n]) => `ข้อ ${id} ไม่เสร็จ: ${n}`)].filter(Boolean).join(' · ');
+    const R = f.rules || {}, rng = (r) => r === 'all' ? 'ทำทุกหัวข้อ' : `ข้อ ${(r || []).join(', ')}`;
+    const notes = f.kind === 'daily' ? '' : `<div class="notes">${f.periods.map(p => `<div>- งานบำรุงรักษา ${S1_PERIOD[p] || p} : ${rng(R[p])}</div>`).join('')}${R.repair ? `<div>- งานซ่อม ${rng(R.repair)}</div>` : ''}</div>`;
+    const html = `<div class="s1"><div class="s1-in">
+      <div class="hdr"><div class="logo"><b>muRata</b><small>INNOVATOR IN ELECTRONICS</small></div><div class="title">Inspection sheet of ${esc(S1_TITLE[f.id] || f.name)}</div><div class="code">${esc(f.code)}</div></div>
+      ${meta}${sec1}${sec2}${sec3}${refs}
+      <div class="cmt"><div class="cmt-l">Other Comment / Alarm Code</div><div class="cmt-v">${pen(note)}</div></div>
+      ${notes}
+      <div class="sigs">${['Engineer', 'Checker', 'Service By', 'Customer'].map(r => `<div class="sig"><div class="sig-v">${r === 'Service By' ? esc(h.inspector) : ''}</div><div>${r}</div></div>`).join('')}</div>
+      <div class="motto">"มาตรฐานคือหัวใจของการทำงานของเรา"</div>
+    </div></div>`;
+    return { html, W, H };
+  }
+  // Once the page is in the document: shrink a long form's content so it stays on one A4 page
+  function fitS1(root) {
+    root.querySelectorAll('.s1').forEach(pg => {
+      const inn = pg.querySelector('.s1-in'); inn.style.transform = ''; inn.style.width = '';
+      const room = pg.clientHeight - 2 * inn.offsetTop, need = inn.scrollHeight;
+      if (need > room) { const k = room / need; inn.style.transform = `scale(${k})`; inn.style.width = `${742 / k}px`; }
+    });
+  }
+
+  // Printing uses the new style 1 sheet (A4, any form); the scanned original stays one tap away for the PM forms
+  const PRINT_STYLE = 'insp.printStyle';
   function showPrint(id) {
     form = null; S = null;
     const rec = store.get(HIST, []).find(r => r.id === id);
     setNav('พิมพ์ใบตรวจ', rec ? rec.h.machine : '', true, 'ผลตรวจ'); setFormChrome(false);
-    if (!rec || !canPrint(rec.form)) {
-      $('app').innerHTML = `<section class="group"><div class="card"><p class="empty">${rec ? 'ฟอร์มรายวันยังพิมพ์ลงใบเดิมไม่ได้ ใช้ CSV ไปก่อน' : 'ไม่พบผลตรวจนี้ในมือถือเครื่องนี้'}</p></div></section>`;
+    if (!rec || !formById(rec.form)) {
+      $('app').innerHTML = `<section class="group"><div class="card"><p class="empty">ไม่พบผลตรวจนี้ในมือถือเครื่องนี้</p></div></section>`;
       return;
     }
-    const s = buildSheet(rec);
-    $('printHost').innerHTML = `<style>@page { size: ${(s.L.page[0] / 72).toFixed(2)}in ${(s.L.page[1] / 72).toFixed(2)}in; margin: 0; }</style>${s.html}`;
-    $('app').innerHTML = `<div class="large"><h1>ใบตรวจ ${esc(rec.form)}</h1><p>ข้อมูลที่กรอกลงบนฟอร์มเดิม ตัวเลขสีแดง = นอกเกณฑ์ ช่องลายเซ็นเว้นไว้ให้เซ็นจริง</p></div>
+    const old = canPrint(rec.form) && store.get(PRINT_STYLE, 'new') === 'old';
+    const s = old ? buildSheet(rec) : buildStyle1(rec);
+    const page = old ? `${(s.L.page[0] / 72).toFixed(2)}in ${(s.L.page[1] / 72).toFixed(2)}in` : 'A4';
+    $('printHost').innerHTML = `<style>@page { size: ${page}; margin: 0; }</style>${s.html}`;
+    $('app').innerHTML = `<div class="large"><h1>ใบตรวจ ${esc(rec.form)}</h1><p>${old ? 'ข้อมูลที่กรอกลงบนฟอร์มเดิม' : 'ใบตรวจแบบใหม่ A4 จากข้อมูลที่กรอก'} ตัวเลขสีแดง = นอกเกณฑ์ ช่องลายเซ็นเว้นไว้ให้เซ็นจริง</p></div>
+      ${canPrint(rec.form) ? `<section class="group"><div class="seg" role="radiogroup" aria-label="แบบใบพิมพ์">
+        <label><input type="radio" name="pstyle" value="new"${old ? '' : ' checked'}><span>แบบใหม่</span></label>
+        <label><input type="radio" name="pstyle" value="old"${old ? ' checked' : ''}><span>ใบสแกนเดิม</span></label></div></section>` : ''}
       <section class="group"><button type="button" class="btn-block primary" id="doPrint">พิมพ์ / บันทึกเป็น PDF</button>
       <p class="group-f">ในหน้าพิมพ์ เลือกเครื่องพิมพ์ หรือเลือก "บันทึกเป็น PDF" (Android) · กดแชร์แล้วเลือกพิมพ์ จากนั้นถ่างนิ้วที่ตัวอย่างเพื่อได้ PDF (iPhone)</p></section>
       <div class="pprev" id="pprev"><div class="pprev-in" id="pprevIn">${s.html}</div></div>`;
+    $('app').querySelectorAll('input[name="pstyle"]').forEach(r => r.addEventListener('change', () => { store.set(PRINT_STYLE, r.value); showPrint(id); }));
+    // the print copy is hidden until printing, so it can't measure itself: it takes the preview's fit
+    if (!old) {
+      fitS1($('pprevIn'));
+      const a = $('pprevIn').querySelector('.s1-in'), b = $('printHost').querySelector('.s1-in');
+      b.style.transform = a.style.transform; b.style.width = a.style.width;
+    }
     // Without the form picture the printout is bare numbers: say so plainly instead of showing a broken image
     const bgFailed = () => {
       if ($('bgErr')) return;
@@ -1864,7 +2064,6 @@
   });
   $('app').addEventListener('change', onInput);
   $('app').addEventListener('click', (e) => {
-    if (e.target.id === 'toggleAll') { S.showAll = !S.showAll; saveDraft(); renderForm(); }
     if (e.target.id === 'resetForm') askReset();
     const fig = e.target.closest('[data-fig]');
     if (fig) openFig(fig.dataset.fig, fig);
