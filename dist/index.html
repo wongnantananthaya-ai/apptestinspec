@@ -239,6 +239,7 @@
     .fig .fig-pic img { width: 100%; height: 100%; max-height: none; }
     .fig-pt { position: absolute; transform: translate(-50%, -50%); border: 3px solid transparent; border-radius: 6px; pointer-events: none; transition: border-color .15s, background-color .15s, box-shadow .15s; }
     .fig-pt.on { border-color: var(--ng); background: rgba(194, 31, 31, 0.14); box-shadow: 0 0 0 4px rgba(194, 31, 31, 0.18); }
+    .fig-val { position: absolute; transform: translate(-50%, -50%); font-style: normal; font-size: clamp(10px, 2.6vw, 14px); font-weight: 700; color: #1D4ED8; pointer-events: none; white-space: nowrap; }
     @media (prefers-reduced-motion: reduce) { .fig-pt { transition: none; } }
     .fig > span:last-child { display: block; padding: 8px 12px; background: var(--fill); color: var(--label-2); font-size: var(--fs-2); }
     .fig > span:last-child b { color: var(--accent); font-weight: 600; white-space: nowrap; }
@@ -332,71 +333,78 @@
     @media (max-width: 360px) { .row-label { min-width: 6em; } .cells:not(.c4) { grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); } }
     @media (min-width: 720px) { .wrap { padding-left: 24px; padding-right: 24px; } }
 
-    /* ---------- Printout on the original paper form ---------- */
     #printHost { display: none; }
-    .psheet { position: relative; overflow: hidden; background: #FFFFFF; font-family: var(--font); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .pbg { position: absolute; inset: 0; width: 100%; height: 100%; }
-    /* Values written onto the sheet: one calm navy "pen" ink, medium weight, figures of equal width so columns line up;
-       out-of-range in a deep red that still reads in black-and-white printing */
-    .psheet { --ink: #1E3A8A; --ink-ng: #B42318; }
-    .pv { position: absolute; font-size: 10.5px; font-weight: 500; line-height: 1; white-space: nowrap; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; transform: translate(0, -96%); }
-    .pv.c { transform: translate(-50%, -96%); }
-    .pv.mid { transform: translate(-50%, -50%); font-size: 13px; font-weight: 600; }   /* y is the box centre, not a text baseline */
-    .pv.ng { color: var(--ink-ng); font-weight: 600; }
-    .pv.s { font-size: 9px; letter-spacing: 0; }
-    .pring { position: absolute; height: 15px; border: 1.2px solid var(--ink); border-radius: 50%; transform: translate(-50%, -78%); }
-    .pcomment { position: absolute; font-size: 10px; font-weight: 500; color: var(--ink); white-space: normal; letter-spacing: 0.01em; }
-    /* A row outside the chosen job / PM round: a pale grey wash over the row, inset so the table lines stay sharp,
-       which fades the printed words to light grey (bands found by tools/find_bands.js); its "-" marks print light too */
-    .poff { position: absolute; background: rgba(250, 251, 252, 0.66); }
-    .pv.off { color: #9AA3AD; }
     /* ---------- Printout in the "style 1" layout (CE97F1029_style1.html), drawn from the saved data ---------- */
     /* One A4 page: 794 × 1123 px at 96 dpi; .s1-in shrinks to fit when a long form runs over (fitS1) */
     .s1 { position: relative; width: 794px; height: 1123px; overflow: hidden; background: #FFFFFF; color: #111; font-family: "Sarabun", "Tahoma", "Leelawadee UI", "Segoe UI", Arial, sans-serif; font-size: 10.5px; line-height: 1.28; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .s1-in { position: absolute; left: 26px; top: 23px; width: 742px; transform-origin: top left; }
-    .s1 .hdr { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; border-bottom: 2px solid #D91E2A; padding-bottom: 4px; margin-bottom: 5px; }
+    .s1 .hdr { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; border-bottom: 2px solid #1F3A68; padding-bottom: 4px; margin-bottom: 5px; }
     .s1 .logo { display: flex; flex-direction: column; line-height: 1; }
-    .s1 .logo b { font-family: "Arial Black", "Helvetica Neue", Arial, sans-serif; font-size: 18px; font-weight: 900; font-style: italic; color: #D91E2A; letter-spacing: -0.5px; }
-    .s1 .logo small { font-size: 5.5px; color: #D91E2A; letter-spacing: 0.4px; font-weight: 700; margin-top: 1px; }
+    .s1 .logo img { display: block; height: 34px; width: auto; }
     .s1 .title { text-align: center; font-size: 13.5px; font-weight: 800; letter-spacing: 0.2px; text-transform: uppercase; }
     .s1 .code { font-size: 15.5px; font-weight: 800; letter-spacing: 0.4px; white-space: nowrap; }
     .s1 table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 6px; font-size: 10px; overflow-wrap: anywhere; }
-    .s1 td, .s1 th { border: 1px solid #444; padding: 2px 5px; vertical-align: middle; }
-    .s1 th { background: #E2E5E9; font-weight: 700; text-align: center; }
+    .s1 td, .s1 th { border: 1px solid #3A4A60; padding: 2px 5px; vertical-align: middle; }
+    .s1 th { background: #E6ECF4; color: #1F3A68; font-weight: 700; text-align: center; }
     .s1 .meta td { padding: 2.5px 5px; }
-    .s1 .ml { font-weight: 700; background: #E9ECEF; white-space: nowrap; }
+    .s1 .ml { font-weight: 700; background: #EEF2F7; white-space: nowrap; }
+    .s1 .mcards { display: grid; grid-template-columns: 1.38fr 0.92fr 1.05fr; gap: 6px; margin-bottom: 6px; }
+    .s1 .mcard { border: 1px solid #3A4A60; background: #FFFFFF; font-size: 9.8px; display: flex; flex-direction: column; }
+    .s1 .mrow { display: flex; align-items: center; gap: 5px; padding: 2.5px 7px; flex: 1; }
+    .s1 .mrow:nth-child(odd) { background: #EEF2F7; }
+    .s1 .mrow.flat, .s1 .mrow.col { flex: 0 0 auto; padding: 3.5px 7px; background: #FFFFFF !important; }
+    .s1 .mrow.flat { background: #EEF2F7 !important; }
+    .s1 .mrow.flat .checks { display: grid; grid-template-columns: repeat(2, auto); justify-content: start; gap: 4px 14px; }
+    .s1 .mrow.col { flex: 1; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; }
+    .s1 .jobs { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+    .s1 img.inl { display: block; width: 100%; height: auto; margin-top: 6px; }
+    .s1 .mlbl { font-weight: 700; white-space: nowrap; color: #1F3A68; }
+    .s1 .mval { flex: 1; white-space: nowrap; overflow-wrap: anywhere; }
+    .s1 .mblank { flex: 1; border-bottom: 1px solid #555; height: 11px; }
     .s1 .checks { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; }
     .s1 .chk { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; white-space: nowrap; }
-    .s1 .bx { display: inline-grid; place-items: center; width: 11px; height: 11px; border: 1.2px solid #222; background: #FFFFFF; font-size: 10px; line-height: 1; font-weight: 700; color: #1E3A8A; vertical-align: middle; }
-    .s1 .sec { font-size: 11px; font-weight: 800; padding: 1.5px 0 2.5px 6px; border-left: 3.5px solid #D91E2A; margin-bottom: 2px; }
+    .s1 .bx { display: inline-grid; place-items: center; width: 11px; height: 11px; border: 1.2px solid #222; background: #FFFFFF; font-size: 10px; line-height: 1; font-weight: 700; color: #1F3A68; vertical-align: middle; }
+    .s1 .sec { font-size: 11px; font-weight: 800; padding: 1.5px 0 2.5px 6px; border-left: 3.5px solid #1F3A68; color: #1F3A68; margin-bottom: 2px; }
     .s1 .c { text-align: center; }
     /* remark cells (หมายเหตุ): their words centred, readings in them too */
     .s1 .rm { text-align: center; }
     .s1 .rm .fill { justify-content: center; }
+    /* one reading per line (belt, insulation): label | value in the middle | unit, with breathing room at both ends */
+    .s1 .lvu { display: grid; grid-template-columns: 74px 1fr 44px; align-items: baseline; padding: 0 6px; }
+    .s1 .lvu span:nth-child(2) { text-align: center; }
+    .s1 .lvu span:last-child { text-align: right; }
+    /* belt line "เส้นที่ n : value Kg." centred as one phrase; the value gets a fixed slot so the lines stack evenly */
+    .s1 .bv { display: inline-block; min-width: 34px; text-align: center; }
+    .s1 tr.off .fill span { color: #A8A8A8; }
     .s1 .r { text-align: right; }
     .s1 .nw { white-space: nowrap; }
-    .s1 .pen { color: #1E3A8A; font-weight: 600; }
-    .s1 .ng { color: #B42318; font-weight: 700; }
-    .s1 .fill { display: flex; justify-content: space-between; gap: 6px; font-size: 9.5px; }
-    .s1 .fill span { flex: 1; border-bottom: 1px dotted #888; padding-bottom: 1px; white-space: nowrap; }
+    .s1 .pen { color: #1F3A68; font-weight: 600; }
+    .s1 .ng { color: #D91E2A; font-weight: 700; }
+    /* several readings in one cell (R / S / T, Low / High…): an evenly spaced group in the middle, no rule underneath */
+    .s1 .fill { display: flex; justify-content: center; flex-wrap: wrap; gap: 2px 14px; font-size: 10px; }
+    .s1 .fill.vt { flex-wrap: nowrap; gap: 6px; font-size: 9.5px; }
+    .s1 .fill.vt .bv { min-width: 26px; }
+    .s1 .fill span { white-space: nowrap; }
     /* rows outside the chosen job / PM round: grey words, like the style 1 sheet */
     .s1 tr.off td, .s1 tr.off td .pen { color: #A8A8A8 !important; }
     .s1 tr.off .fill span { border-bottom-color: #CCC; }
     .s1 tr.off .bx { border-color: #BBB; }
     .s1 .refs { display: grid; gap: 6px; margin-bottom: 6px; align-items: stretch; }
-    .s1 .s1card { border: 1px solid #444; padding: 3px; height: 165px; display: flex; flex-direction: column; }
-    .s1 .s1card-t { font-size: 9.8px; font-weight: 800; text-align: center; border-bottom: 1px solid #444; padding: 2px 0; margin-bottom: 3px; background: #E2E5E9; }
+    .s1 .s1card { border: 1px solid #3A4A60; padding: 3px; height: 165px; display: flex; flex-direction: column; }
+    .s1 .s1card-t { font-size: 9.8px; font-weight: 800; text-align: center; border-bottom: 1px solid #3A4A60; padding: 2px 0; margin-bottom: 3px; background: #E6ECF4; color: #1F3A68; }
     .s1 .s1card-i { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
     .s1 .s1card-i img { width: 100%; height: 100%; object-fit: contain; display: block; }
     .s1 .s1card-i table { margin: 0; font-size: 8.5px; }
     .s1 .s1card-i td, .s1 .s1card-i th { padding: 1px 3px; text-align: center; }
-    .s1 .cmt { border: 1px solid #444; padding: 4px 6px; margin-bottom: 5px; }
+    .s1 .cmt { border: 1px solid #3A4A60; padding: 4px 6px; margin-bottom: 5px; }
     .s1 .cmt-l { font-weight: 700; font-size: 9.8px; margin-bottom: 3px; }
     .s1 .cmt-v { min-height: 13px; border-bottom: 1px dotted #666; padding-bottom: 1px; }
+    /* the comment as a card beside a single reference card: same frame and title bar, ruled lines to write on */
+    .s1 .cmt-lines { flex: 1; padding: 2px 6px; line-height: 22px; text-align: left; background-image: repeating-linear-gradient(to bottom, transparent 0 21px, #999 21px 22px); background-clip: content-box; }
     .s1 .notes { font-size: 9px; line-height: 1.3; margin-bottom: 4px; }
     .s1 .sigs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-    .s1 .sig { border: 1px solid #444; height: 40px; display: flex; flex-direction: column; justify-content: flex-end; padding: 3px 6px; text-align: center; font-size: 9.2px; font-weight: 600; }
-    .s1 .sig-v { border-bottom: 1px dotted #333; margin-bottom: 2px; min-height: 12px; font-weight: 600; color: #1E3A8A; }
+    .s1 .sig { border: 1px solid #3A4A60; height: 40px; display: flex; flex-direction: column; justify-content: flex-end; padding: 3px 6px; text-align: center; font-size: 9.2px; font-weight: 600; }
+    .s1 .sig-v { border-bottom: 1px dotted #333; margin-bottom: 2px; min-height: 12px; font-weight: 600; color: #1F3A68; }
     .s1 .motto { font-weight: 800; margin-top: 5px; font-size: 9.8px; text-align: center; }
     .pprev { margin-top: 16px; overflow: hidden; border: 1px solid #E5E5EA; border-radius: 8px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
     .pprev-in { transform-origin: top left; }
@@ -433,8 +441,6 @@
   <div id="sheetHost"></div>
   <div id="printHost"></div>
 
-  <!-- Where each value goes on each paper form; generated from the PDFs (see CLAUDE.md) -->
-  <script src="print/layout.js"></script>
   <script>
   // =====================================================================
   // Helpers
@@ -522,14 +528,17 @@
     fan:       { src: 'img/fan_points.png',   cap: 'ตำแหน่งจุดวัดความสั่น 1–4 (ซ้าย: ขับสายพาน · ขวา: ต่อตรง)' },
     // ar = image width / height; pts = numbered boxes on the picture [centre x, centre y, width, height] as fractions,
     // lit red while that point's readings are being typed
-    bp:        { src: 'img/bp_points.png',    cap: 'ตำแหน่งจุดวัด 1–3 ของชุดเกียร์และมอเตอร์', ar: 1102 / 794,
+    bp:        { src: 'img/bp_points.png',    inline: true, cap: 'ตำแหน่งจุดวัด 1–3 ของชุดเกียร์และมอเตอร์', ar: 1102 / 794,
                  pts: { 1: [0.117, 0.548, 0.089, 0.083], 2: [0.355, 0.539, 0.087, 0.083], 3: [0.860, 0.605, 0.087, 0.083] } },
-    vp:        { src: 'img/vp_points.png',    cap: 'ตำแหน่งจุดวัด 1–4 ตามแบบปั๊ม CT3 / CT4 / FT3' },
-    wp:        { src: 'img/wp_points.png',    cap: 'ตำแหน่งจุดวัด 1–3 ตามแบบปั๊ม (แนวตั้ง / แนวนอน)' },
-    wpAlign:   { src: 'img/wp_alignment.png', cap: 'วิธีวัด Alignment: ระยะห่างหน้าคัปปลิ้ง (ซ้าย) และเยื้องศูนย์ (ขวา)' },
-    hexRods:   { src: 'img/hex_rods.png',     cap: 'จุดวัดระยะเหล็กสตัดเกลียว D1–D8' },
+    vp:        { src: 'img/vp_points.png',    inline: true, cap: 'ตำแหน่งจุดวัด 1–4 ตามแบบปั๊ม CT3 / CT4 / FT3' },
+    wp:        { src: 'img/wp_points.png',    inline: true, ar: 1366 / 930, cap: 'ตำแหน่งจุดวัด 1–3 ตามแบบปั๊ม (แนวตั้ง / แนวนอน)' },
+    wpAlign:   { src: 'img/wp_alignment.png', ar: 2048 / 596,
+                 boxes: { g0: [32.15, 23.15], g1: [32.15, 79.87], g2: [21.41, 50.34], g3: [42.92, 51.26],
+                          o0: [82.10, 21.14], o1: [82.35, 80.03], o2: [70.78, 49.58], o3: [93.77, 49.08] },
+                 cap: 'วิธีวัด Alignment: ระยะห่างหน้าคัปปลิ้ง (ซ้าย) และเยื้องศูนย์ (ขวา)' },
+    hexRods:   { src: 'img/hex_rods.png',     h: 225, cap: 'จุดวัดระยะเหล็กสตัดเกลียว D1–D8' },
     hexPlates: { src: 'img/hex_plates.png',   cap: 'รูปแบบการจัดเรียงแผ่นเพลท' },
-    cfp:       { src: 'img/cfp_piping.png',   cap: 'ระบบท่อ จุด Injection point และชิ้นส่วนหัวปั๊ม' },
+    cfp:       { src: 'img/cfp_fig.png', inline: true, h: 400, cap: 'ระบบท่อ จุด Injection point และชิ้นส่วนหัวปั๊ม' },
   };
   const tasks = (list) => list.map((label, i) => ({ id: `2.${i + 1}`, label }));
 
@@ -590,8 +599,8 @@
           it('1.9', 'refr', 'ความดันน้ำยา Compressor No.1', { tool: 'Manifold gauge', ref: 'refr' }),
           it('1.10', 'refr', 'ความดันน้ำยา Compressor No.2', { tool: 'Manifold gauge', ref: 'refr' }),
           ins('1.11', 'ความเป็นฉนวนขดลวด Compressor No.1'), ins('1.12', 'ความเป็นฉนวนขดลวด Compressor No.2'),
-          belt('1.13', 2),
-          it('1.14', 'grid', 'ความเร็วลมด้านกลับ', { min: 2.8, max: 3.5, unit: 'm/s', tool: 'Flow meter' })],
+          { ...belt('1.13', 2), spec: 'ตารางมาตรฐาน2' },
+          it('1.14', 'grid', 'ความเร็วลมด้านกลับเฉลี่ย', { min: 2.8, max: 3.5, unit: 'm/s', spec: '2.8 m/s - 3.5 m/s', tool: 'Flow meter' })],
       t: tasks(['วัดค่าการทำงานของเครื่องปรับอากาศ ตามข้อ 1', 'เปลี่ยน Pre-Filter หน้าแอร์ PC', 'ล้างทำความสะอาดแผงคอยล์เย็นและแผ่นกรองอากาศ FCU', 'ทำความสะอาดท่อเดรน / ถาดเดรน FCU', 'เช็ดทำความสะอาดหัว Probe วัดอุณหภูมิ FCU', 'ขันน็อตจุดต่อสายไฟชุดแผงวงจรไฟฟ้าและมาร์คสี FCU+CDU', 'เป่าทำความสะอาดแผงวงจรไฟฟ้า FCU+CDU', 'ล้างทำความสะอาดแผงคอยล์ร้อน CDU', 'ตรวจเช็คการตันของดรายเออร์ฟิวเตอร์', 'ตรวจเช็ค Fan Capacitor, Compressor Capacitor (ถ้ามี)', 'ปรับตั้งสายพาน ให้เป็นไปตามมาตรฐาน (ถ้ามี)', 'เปลี่ยนสายพาน ให้เป็นไปตามมาตรฐาน (ถ้ามี)', 'ตรวจสอบความเรียบร้อยโดยรวมของเครื่องจักรเพื่อความพร้อมต่อการใช้งาน', 'ตรวจสอบระบบระบายน้ำโดยการเทน้ำ รวมถึงถาดเดรนแอร์และ Heater', 'ตรวจสอบฉนวนของเครื่องและท่อดักท์', 'ล้างทำความสะอาด net filter (ถ้ามี)']),
       rules: { '1M': ['1.1-1.8', '2.16'], '3M': ['1.1-1.8', '1.13', '2.1', '2.3-2.4', '2.6-2.15'], '6M': ['1.1-1.14', '2.1-2.11', '2.13-2.16'], '1Y': 'all', repair: ['1.1-1.12'] } },
 
@@ -798,7 +807,7 @@
       }
       case 'i3': {
         const keys = h.phase === '1' ? ['I'] : ['R', 'S', 'T'];
-        return [{ t: 'RLA จากป้าย nameplate', c: [{ k: 'rla', l: 'RLA', u: 'A' }] }, ...BA(p => keys.map(k => ({ k: `${p}_${k}`, l: k, u: 'A' })))];
+        return BA(p => keys.map(k => ({ k: `${p}_${k}`, l: k, u: 'A' })));
       }
       case 'ins': return [{ t: 'ค่าหลังทำงาน', c: ['U-G', 'V-G', 'W-G'].map(k => ({ k, l: k, u: 'MΩ' })) }];
       case 'belt': return [{ t: 'ค่าหลังทำงาน', c: Array.from({ length: item.n }, (_, i) => ({ k: `l${i + 1}`, l: `เส้นที่ ${i + 1}`, u: 'kg' })) }];
@@ -876,9 +885,9 @@
     if (item.judge === 'refT') { const r = REFR[h.refr]; return r ? `${r.sT.join(' – ')} °C (${h.refr})` : 'เลือกชนิดน้ำยาในข้อมูลเครื่องก่อน'; }
     if (item.judge === 'vpflow') { const f = VP_FLOW[h.vpModel]; return f ? `${f[0]} l/min ตามตาราง 4 (${h.vpModel})` : 'เลือกรุ่นปั๊มในข้อมูลเครื่องก่อน'; }
     if (item.judge === 'iso' || item.type === 'vibTemp') return h.vclass ? `ISO 10816 Class ${h.vclass} · ผ่าน ≤ ${ISO[h.vclass][1]} mm/s` : 'เลือก Class เครื่องในข้อมูลเครื่องก่อน';
-    if (item.type === 'grid') return `เฉลี่ย ${item.min} – ${item.max} m/s`;
+    if (item.type === 'grid') return item.spec || `เฉลี่ย ${item.min} – ${item.max} m/s`;
     if (item.type === 'dosing') return 'ตามที่กำหนด';
-    if (item.type === 'vunb') return 'คำนวณให้อัตโนมัติ · มอเตอร์ 1 เฟสไม่ต้องทำ';
+    if (item.type === 'vunb') return 'คำนวณให้อัตโนมัติ';
     if (item.spec) return item.spec;
     if (item.min != null && item.max != null) return `${item.min} – ${item.max} ${item.unit || ''}`;
     if (item.min != null) return `≥ ${item.min} ${item.unit || ''}`;
@@ -1144,20 +1153,23 @@
     const calcHtml = calc.length ? `<div class="calc" data-calc="${esc(item.id)}">${calcInner(calc)}</div>` : '';
     const extra = item.type === 'dosing' ? '<p class="hint">จับเวลา 2 ครั้งต่อปริมาณ · Avg. Dosing = ปริมาณ ÷ เวลาเฉลี่ย × 60</p>'
       : item.type === 'vunb' ? '<p class="hint">ใช้แรงดัน RS / ST / RT ของข้อ 1.1 (ค่าหลังทำงาน ถ้าไม่มีใช้ค่าก่อน) · Temp inc = 2 × Vunb² ตามกราฟในฟอร์ม</p>' : '';
-    return `<div class="item${needed ? '' : ' off'}" data-item="${esc(item.id)}" data-st="${st}">${head}${figHtml(item)}${body}${calcHtml}${extra}${item.ref ? REF_HTML[item.ref]() : ''}</div>`;
+    return `<div class="item${needed ? '' : ' off'}" data-item="${esc(item.id)}" data-st="${st}">${head}${figHtml(item, vals)}${body}${calcHtml}${extra}${item.ref ? REF_HTML[item.ref]() : ''}</div>`;
   }
 
   // First item that uses a diagram shows it; later items get a one-line link to the same picture
   let shownFigs = new Map();
-  function figHtml(item) {
+  function figHtml(item, vals) {
     const f = item.fig && FIGS[item.fig];
     if (!f) return '';
     if (shownFigs.has(item.fig)) return `<button type="button" class="fig-link" data-fig="${item.fig}" aria-label="ดูรูป: ${esc(f.cap)}">ดูรูปประกอบ (รูปเดียวกับข้อ ${esc(shownFigs.get(item.fig))})</button>`;
     shownFigs.set(item.fig, item.id);
     const img = `<img src="${f.src}" alt="${esc(f.cap)}" loading="lazy" decoding="async" onerror="this.closest('.fig').hidden=true">`;
-    // With point boxes the picture sits in a frame of its own aspect ratio, so the markers land on the drawing
-    const pic = f.pts ? `<span class="fig-pic" style="--ar:${f.ar}">${img}${Object.entries(f.pts).map(([n, [x, y, w, h]]) =>
-      `<i class="fig-pt" data-pt="${n}" style="left:${x * 100}%;top:${y * 100}%;width:${(w + 0.02) * 100}%;height:${(h + 0.03) * 100}%"></i>`).join('')}</span>` : img;
+    // With point boxes or value overlays the picture sits in a frame of its own aspect ratio, so markers land on the drawing
+    const overlays = [
+      ...(f.pts ? Object.entries(f.pts).map(([n, [x, y, w, h]]) => `<i class="fig-pt" data-pt="${n}" style="left:${x * 100}%;top:${y * 100}%;width:${(w + 0.02) * 100}%;height:${(h + 0.03) * 100}%"></i>`) : []),
+      ...(f.boxes ? Object.entries(f.boxes).map(([k, [x, y]]) => `<i class="fig-val" data-fk="${k}" style="left:${x}%;top:${y}%">${esc((vals && vals[k]) || '')}</i>`) : [])
+    ];
+    const pic = overlays.length ? `<span class="fig-pic" style="--ar:${f.ar}">${img}${overlays.join('')}</span>` : img;
     return `<button type="button" class="fig" data-fig="${item.fig}" aria-label="ขยายรูป: ${esc(f.cap)}">
       ${pic}
       <span>${esc(f.cap)} <b>แตะเพื่อขยาย</b></span></button>`;
@@ -1340,6 +1352,9 @@
     if (pill) { pill.className = `pill ${st}`; pill.textContent = pillHtml(st); }
     const wrap = document.querySelector(`[data-item="${CSS.escape(item.id)}"]`);
     if (wrap) wrap.dataset.st = st;
+    if (item.fig && FIGS[item.fig].boxes) {
+      document.querySelectorAll(`.fig[data-fig="${item.fig}"] .fig-val`).forEach(el => { el.textContent = vals[el.dataset.fk] || ''; });
+    }
   }
   function onInput(e) {
     const el = e.target;
@@ -1591,209 +1606,6 @@
   }
 
   // =====================================================================
-  // Print on the original paper form: the PDF page as background, values placed on top
-  // =====================================================================
-  const PL = window.PRINT_LAYOUT || {};
-  const canPrint = (formId) => !!PL[formId];
-  // Spots read off the sheet by hand (no text label to anchor on)
-  const MANUAL = {
-    WP: { align: { g: [[0.239, 0.549], [0.239, 0.613], [0.183, 0.579], [0.300, 0.579]], o: [[0.499, 0.546], [0.505, 0.612], [0.447, 0.581], [0.567, 0.581]] },
-          vunb: { x: 0.755, y: [0.601, 0.615, 0.629] } },
-    // 4x4 air-velocity tables, offsets from the small ก่อน / หลัง label beside each table
-    gridAHU:  { b: { dx: [0.092, 0.138, 0.185, 0.23], dy: [0.014, 0.0317, 0.0494, 0.0671] }, a: { dx: [0.107, 0.15, 0.191, 0.237], dy: [0.014, 0.0317, 0.0494, 0.0671] } },
-    gridPCAC: { b: { dx: [0.092, 0.135, 0.178, 0.222], dy: [0.0127, 0.0279, 0.043, 0.0582] }, a: { dx: [0.095, 0.138, 0.18, 0.222], dy: [0.0127, 0.0279, 0.043, 0.0582] } },
-  };
-  const pct = (n) => `${(n * 100).toFixed(3)}%`;
-
-  // Printed width of a value in px: measured on a hidden .pv inside a .psheet, so it uses the print font exactly
-  let measureEl;
-  function textW(s, size) {
-    if (!measureEl) {
-      const host = document.createElement('div');
-      host.className = 'psheet'; host.setAttribute('aria-hidden', 'true');
-      host.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden';
-      measureEl = document.createElement('span'); measureEl.className = 'pv'; measureEl.style.transform = 'none';
-      host.appendChild(measureEl); document.body.appendChild(host);
-    }
-    measureEl.style.fontSize = size + 'px'; measureEl.textContent = s;
-    return measureEl.getBoundingClientRect().width;
-  }
-
-  let offRow = false;
-  function buildSheet(rec) {
-    const L = PL[rec.form], f = formById(rec.form), h = rec.h;
-    const W = L.page[0] * 96 / 72, H = L.page[1] * 96 / 72;
-    const parts = [];
-    // o.fit = width of the printed blank (page fraction): a value too long for it stays on one line, first smaller
-    // (down to 7px, still readable on paper), then condensed sideways for the rest
-    const put = (x, y, text, o = {}) => {
-      if (x == null || y == null || text == null || String(text).trim() === '') return;
-      let fs = o.fs || 0, sx = 1;
-      if (o.fit) {
-        const w = textW(String(text), 10.5), room = o.fit * W;
-        if (w > room) { fs = Math.max(7, 10.5 * room / w); sx = Math.min(1, room / (w * fs / 10.5)); }
-      }
-      const squeeze = sx < 1 ? `;transform:translate(${o.c ? '-50%' : '0'},-96%) scaleX(${sx.toFixed(3)});transform-origin:${o.c ? '50%' : '0'} 0` : '';
-      parts.push(`<span class="pv${o.c ? ' c' : ''}${o.box ? ' mid' : ''}${o.ng ? ' ng' : ''}${o.s ? ' s' : ''}${o.off || offRow ? ' off' : ''}" style="left:${pct(x)};top:${pct(y)}${fs ? `;font-size:${fs.toFixed(1)}px` : ''}${squeeze}">${esc(text)}</span>`);
-    };
-    const field = (p, text) => { if (p) put(p[0], p[1], text, { fit: p[2] }); };
-    const ring = (m) => { if (m) parts.push(`<span class="pring" style="left:${pct(m[0])};top:${pct(m[1])};width:${((m[2] + 0.02) * W).toFixed(1)}px"></span>`); };
-    const tick = (x, y) => put(x, y, '✓', { c: 1 });
-    const hd = L.hdr, ft = L.foot;
-
-    // Header
-    // Split values into the printed segments: ___ - ___ - ___ - ___ , __/__/__ , __ : __
-    const segs = (u, parts, fr) => { if (!u) return; parts.forEach((p, k) => put(u[0] + u[2] * fr[k], u[1], p, { c: 1 })); };
-    const mParts = h.machine.split('-');
-    if (hd.machine) { if (mParts.length >= 2 && mParts.length <= 4) segs(hd.machine, mParts, [0.12, 0.38, 0.63, 0.88]); else put(hd.machine[0] + 0.004, hd.machine[1], h.machine); }
-    field(hd.factory, h.factory);
-    if (hd.date) segs(hd.date, h.date.split('-').reverse(), [0.15, 0.48, 0.8]);
-    if (hd.time) segs(hd.time, h.time.split(':'), [0.25, 0.78]);
-    field(hd.panel, h.panel);
-    (f.models || []).forEach(m => field(hd.models[m.toLowerCase()] || hd.models[''], h.models[m]));
-    const mark = (k, i = 0) => ring((hd.marks[k] || [])[i]);
-    // Machine type: a tick in the box beside its label (boxes found by tools/find_boxes.js); a ring if no box was found
-    if (f.subtypes && f.subtypes.length > 1) {
-      const bx = ((hd.boxes || {})[h.subtype] || [])[0];
-      if (bx) put(bx[0], bx[1], '✓', { c: 1, box: 1 }); else mark(h.subtype);
-    }
-    mark(h.job);
-    if (h.job === 'pm') mark(h.period);
-    // Pump / valve state (WP): a tick in the box before เปิด or ปิด on its own row; a ring if no box was found
-    if (f.pumpState) [h.pumpState, h.valveState].forEach((s, i) => {
-      const bx = ((hd.boxes || {})[s] || [])[i];
-      if (bx) put(bx[0], bx[1], '✓', { c: 1, box: 1 }); else mark(s, i);
-    });
-
-    // Section 1: measured values, one sheet row per item (in sheet order)
-    // An item outside the chosen job / PM round prints "-" in every box it has, so the sheet shows it was not due
-    const dash = (it) => Object.fromEntries([...cellsOf(it, h).filter(c => c.k !== 'rla').map(c => c.k), 'b_avg', 'a_avg', 'avgTime', 'avgDosing'].map(k => [k, '-']));
-    const sheetItems = f.m.filter(i => i.type !== 'vunb');
-    const shades = [];
-    offRow = false;   // set while a section 1 row outside the round is being placed: its "-" marks print light
-    const shade = (b) => { if (b && b.every(isFinite)) shades.push(`<div class="poff" style="left:calc(${pct(b[0])} + 2px);top:calc(${pct(b[1])} + 2px);width:calc(${pct(b[2] - b[0])} - 4px);height:calc(${pct(b[3] - b[1])} - 4px)"></div>`); };
-    sheetItems.forEach((it, idx) => {
-      offRow = !isNeeded(f, it, h);
-      if (offRow) shade((L.bands1 || [])[idx]);
-      const vals = isNeeded(f, it, h) ? rec.v[it.id] : dash(it); const y = L.rows1[idx];
-      if (!vals || y == null) return;
-      const ng = (k) => judge(it, k, vals[k], vals, h) === 'ng';
-      const P = (x, yy, k, c = 1) => put(x, yy, vals[k], { c, ng: ng(k), s: !c });
-      const inl = L.inl.filter(a => Math.abs(a.y - y) < 0.005);
-      const below = (re, n) => L.inl.filter(a => re.test(a.s) && a.y >= y - 0.004).sort((a, b) => a.y - b.y).slice(0, n);
-      switch (it.type) {
-        case 'value':
-          if (it.ba !== 'after') P(L.cols.b, y, 'b');
-          P(L.cols.a, y, 'a'); break;
-        case 'v3': case 'i3': {
-          const keys = it.type === 'v3' ? (h.phase === '1' ? ['L-N'] : ['RS', 'ST', 'RT', 'RN']) : (h.phase === '1' ? ['I'] : ['R', 'S', 'T']);
-          if (it.ba === 'both') {
-            // Cells print as "  /  /  ": put the three phases between the slashes when they are known
-            const sl = inl.filter(a => a.s === '/').map(a => a.x).sort((a, b) => a - b);
-            ['b', 'a'].forEach((p, pi) => {
-              const pair = sl.length >= 4 ? sl.slice(pi * 2, pi * 2 + 2) : null;
-              keys.forEach((k, j) => {
-                // even spacing: each value sits half a slash-gap out from its slash, the middle one between them
-                const g = pair ? pair[1] - pair[0] : 0;
-                const x = keys.length === 1 ? L.cols[p] : pair ? [pair[0] - g / 2, (pair[0] + pair[1]) / 2, pair[1] + g / 2][j] : L.cols[p] + (j - 1) * 0.036;
-                put(x, y, vals[`${p}_${k}`], { c: 1, s: 1, ng: ng(`${p}_${k}`) });
-              });
-            });
-          } else if (it.slash && inl.filter(a => a.s === '/').length >= 2 && keys.length > 1) {
-            // One after-work cell printed as "  /  /  ": phases go before, between and after the two slashes
-            const [s1, s2] = inl.filter(a => a.s === '/').map(a => a.x).sort((a, b) => a - b);
-            const g = s2 - s1;
-            keys.slice(0, 3).forEach((k, j) => P([s1 - g / 2, (s1 + s2) / 2, s2 + g / 2][j], y, `a_${k}`, 1));
-          } else {
-            const base = inl.find(a => /^(RS|R):$/.test(a.s));
-            keys.forEach((k, j) => {
-              const lab = k === 'L-N' ? 'RS' : k === 'I' ? 'R' : k;
-              const a = inl.find(a => a.s.replace(/\s/g, '') === `${lab}:`);
-              // a small gap after the printed label ("RS:") so the value doesn't touch it
-              const x = a ? a.e + 0.005 : base ? base.e + 0.005 + j * (it.type === 'v3' ? 0.045 : 0.06) : L.cols.b + j * 0.045;
-              // Labels printed close together (RS:___ST:___): shrink the value so it ends before the next label
-              const next = inl.filter(b => b.x > x).sort((p, q) => p.x - q.x)[0];
-              const room = next ? (next.x - x - 0.002) * W : Infinity, len = String(vals[`a_${k}`] || '').length;
-              const fs = len ? Math.max(6.5, Math.min(8.5, room / (len * 0.6))) : 8.5;
-              put(x, y, vals[`a_${k}`], { ng: ng(`a_${k}`), s: 1, fs: fs < 8.5 ? fs : 0 });
-            });
-          }
-          break;
-        }
-        case 'ins': {
-          const ug = below(/^U-G$/, 1)[0]; const y0 = ug ? ug.y : y;
-          ['U-G', 'V-G', 'W-G'].forEach((k, j) => {
-            const an = L.inl.find(a => a.s === k && Math.abs(a.y - (y0 + j * L.rowH)) < 0.006);
-            P((L.cols.b + L.cols.a) / 2, an ? an.y : y0 + j * L.rowH, k);
-          });
-          break;
-        }
-        case 'belt': {
-          const ans = below(/^[1-3] ?:$/, it.n);
-          for (let j = 0; j < it.n; j++) { const an = ans[j]; P(an ? an.e + 0.012 : L.cols.b, an ? an.y : y + j * L.rowH, `l${j + 1}`, 0); }
-          break;
-        }
-        case 'refr': {
-          const lo = inl.find(a => /^Low/.test(a.s)), hi = inl.find(a => /High :$/.test(a.s));
-          P(lo ? lo.e + 0.007 : L.cols.b, y, 'lo', 0); P(hi ? hi.e + 0.007 : L.cols.a, y, 'hi', 0); break;
-        }
-        case 'pair': {
-          const ans = inl.filter(a => /^(Comp\.|CDU)\d ?:$/.test(a.s)).sort((a, b) => a.x - b.x);
-          it.labels.forEach((l, j) => P(ans[j] ? ans[j].e + 0.009 : L.cols.b + j * 0.1, y, `p${j + 1}`, 0)); break;
-        }
-        case 'vibTemp': {
-          const t = L.tbl.vt; if (!t) break;
-          for (let k = 1; k <= it.n; k++) { P(t.v, t.y0 + k * t.rh, `v${k}`); P(t.t, t.y0 + k * t.rh, `t${k}`); }
-          break;
-        }
-        case 'grid': {
-          const g = L.tbl.grid; if (!g) break;
-          const off = MANUAL['grid' + rec.form] || MANUAL.gridAHU;
-          ['b', 'a'].forEach(p => { for (let r = 1; r <= 4; r++) for (let c = 1; c <= 4; c++) P(g[p][0] + off[p].dx[c - 1], g[p][1] + off[p].dy[r - 1], `${p}${r}${c}`); });
-          P(L.cols.b, y, 'b_avg'); P(L.cols.a, y, 'a_avg'); break;
-        }
-        case 'dosing': {
-          const d = L.tbl.dose; if (!d) break;
-          [10, 20, 30, 40, 50].forEach(ml => { const yy = d.rows[ml]; if (yy == null) return; P(d.t1, yy, `t1_${ml}`); P(d.t2, yy, `t2_${ml}`); });
-          P(...d.avgTime, 'avgTime'); P(...d.avgDosing, 'avgDosing'); break;
-        }
-        case 'choice':
-          if (L.tbl.choice && L.tbl.choice[vals.v]) tick(...L.tbl.choice[vals.v]); break;
-        case 'align': {
-          const m = MANUAL[rec.form] && MANUAL[rec.form].align; if (!m) break;
-          [0, 1, 2, 3].forEach(j => { P(...m.g[j], `g${j}`); P(...m.o[j], `o${j}`); }); break;
-        }
-      }
-    });
-    offRow = false;
-    const vu = f.m.find(i => i.type === 'vunb'), vm = MANUAL[rec.form] && MANUAL[rec.form].vunb;
-    if (vu && vm && rec.v[vu.id]) ['vavg', 'vunb', 'tinc'].forEach((k, j) => put(vm.x, vm.y[j], rec.v[vu.id][k], { c: 1 }));
-
-    // Section 2: tick the chosen column; a task outside the round gets "-" under ไม่ได้ทำ
-    (f.t || []).forEach((t, i) => {
-      if (L.rows2[i] == null) return;
-      if (!isNeeded(f, t, h)) { shade((L.bands2 || [])[i]); put(L.tcols.skip, L.rows2[i], '-', { c: 1, off: 1 }); return; }
-      const s = rec.t[t.id]; if (s) tick(L.tcols[s], L.rows2[i]);
-    });
-
-    // Footer
-    const note = [h.comment, ...Object.entries(rec.tn || {}).map(([id, n]) => `ข้อ ${id} ไม่เสร็จ: ${n}`)].filter(Boolean).join(' · ');
-    if (note) parts.push(`<div class="pcomment" style="left:${pct(ft.commentX)};top:${pct(ft.comment[1] - 0.016)};width:${pct(0.95 - ft.commentX)};text-indent:${((ft.comment[0] - ft.commentX) * W).toFixed(1)}px;line-height:${(0.0172 * H).toFixed(1)}px">${esc(note)}</div>`);
-    // Layout y is the box's bottom edge: lift the name so it sits inside the signature box, not on its line
-    put(ft.service[0], ft.service[1] - 0.011, h.inspector, { c: 1, fs: Math.max(7, Math.min(10.5, 0.068 * W / (h.inspector.length * 0.6))) });
-    // Ref no boxes: each value is centred in its box and shrinks to the inner width less a small margin
-    // (refW = [width, centre x], found by tools/find_boxes.js; sheets without boxes keep the caption's centre)
-    const ref = (k, text) => {
-      const b = ft.refW && ft.refW[k];
-      if (ft[k]) put(b ? b[1] : ft[k][0], ft[k][1], text, { c: 1, fit: b ? b[0] - 0.01 : undefined });
-    };
-    ref('mc', h.machine);
-    ref('period', h.job === 'pm' ? h.period : h.job === 'repair' ? 'ซ่อม' : 'Insp.');
-    ref('date', h.date.split('-').reverse().join('/'));
-    return { html: `<div class="psheet" style="width:${W.toFixed(1)}px;height:${H.toFixed(1)}px"><img class="pbg" src="${L.bg}" alt="">${shades.join('')}${parts.join('')}</div>`, W, H, L };
-  }
-
-  // =====================================================================
   // Printout in the "style 1" layout (the user's CE97F1029_style1.html), for every form, drawn from the saved data.
   // Values in navy, out-of-range in red; rows outside the job / PM round stay listed in grey, as on that sheet.
   // =====================================================================
@@ -1812,35 +1624,69 @@
     while (models.length < 3) models.push(['', '']);
     const types = f.subtypes && f.subtypes.length ? f.subtypes.map(s => bx(h.subtype === s || f.subtypes.length === 1, s)).join('') : '';
     const jobs = f.kind === 'daily' ? bx(true, 'ตรวจรายวัน')
-      : [...f.periods.map(p => bx(h.job === 'pm' && h.period === p, p)), bx(h.job === 'repair', 'งานซ่อม'), bx(h.job === 'insp', 'Inspection')].join('');
+      : '<div class="checks">' + f.periods.map(p => bx(h.job === 'pm' && h.period === p, p)).join('') + '</div><div class="checks">' + bx(h.job === 'repair', 'งานซ่อม') + bx(h.job === 'insp', 'Inspection') + '</div>';
     const extras = [
       ...(f.panel ? [['หมายเลขตู้ไฟฟ้า', h.panel]] : []),
       ...(f.m.some(i => i.judge === 'iso' || i.type === 'vibTemp') ? [['Class เครื่อง', h.vclass ? `Class ${h.vclass}` : '']] : []),
       ...(f.refr ? [['ชนิดน้ำยา', h.refr]] : []), ...(f.vpModel ? [['รุ่นปั๊ม', h.vpModel]] : []),
       ...(f.pumpState ? [['สถานะปั๊ม / วาล์วขาออก', [h.pumpState, h.valveState].filter(Boolean).join(' / ')]] : []),
     ];
-    const lab = (l) => l ? `<td class="ml">${esc(l)}</td>` : '<td class="ml"></td>';
-    const meta = `<table class="meta"><colgroup><col style="width:13%"><col style="width:23%"><col style="width:16%"><col style="width:18%"><col style="width:11%"><col style="width:19%"></colgroup>
-      <tr>${lab(f.kind === 'daily' ? `${f.name} No.` : 'หมายเลขเครื่อง')}<td class="nw">${pen(h.machine)}</td>${lab(models[0][0])}<td>${pen(models[0][1])}</td><td class="ml">ประเภทเครื่อง</td><td><div class="checks">${types}</div></td></tr>
-      <tr>${lab('วันที่ตรวจ / เวลา')}<td class="nw">${pen(dmy(h.date))} &nbsp;เวลา ${pen(h.time || '')}</td>${lab(models[1][0])}<td>${pen(models[1][1])}</td><td class="ml" rowspan="2">${f.kind === 'daily' ? 'งาน' : 'งานบำรุงรักษา'}</td><td rowspan="2"><div class="checks">${jobs}</div></td></tr>
-      <tr>${lab('โรงงาน')}<td>${pen(h.factory)}</td>${lab(models[2][0])}<td>${pen(models[2][1])}</td></tr>
-      ${extras.length ? `<tr>${extras.map(([l, v], i) => `${lab(l)}<td${i === extras.length - 1 ? ` colspan="${6 - extras.length * 2 + 1}"` : ''}>${pen(v)}</td>`).join('')}</tr>` : ''}</table>`;
+    // three cards, as on the sheet: machine & place | equipment specs | type & job; empty values keep a blank line
+    const mr = (l, v, cls) => '<div class="mrow"><span class="mlbl">' + esc(l) + ' :</span>' + (v == null || String(v).trim() === '' ? '<span class="mblank"></span>' : '<span class="mval">' + v + '</span>') + '</div>';
+    const c1 = [[f.kind === 'daily' ? f.name + ' No.' : 'หมายเลขเครื่อง', pen(h.machine)], ['วันที่ตรวจ / เวลา', pen(dmy(h.date)) + (h.time ? ' เวลา ' + pen(h.time) : '')], ['โรงงาน', pen(h.factory)]];
+    const c2 = [...models.filter(m => m[0]).map(m => [m[0], pen(m[1])]), ...extras.map(([l, v]) => [l, pen(v)])];
+    const ex1 = c2.findIndex(x => x[0] === 'หมายเลขตู้ไฟฟ้า'); if (ex1 >= 0) c1.push(c2.splice(ex1, 1)[0]);
+    const meta = '<div class="mcards"><div class="mcard">' + c1.map(x => mr(x[0], x[1])).join('') + '</div><div class="mcard">' + c2.map(x => mr(x[0], x[1])).join('') + '</div>' +
+      '<div class="mcard">' + (types ? '<div class="mrow flat"><span class="mlbl">ประเภทเครื่อง :</span><span class="checks">' + types + '</span></div>' : '') +
+      '<div class="mrow col"><span class="mlbl">' + (f.kind === 'daily' ? 'งาน' : 'งานบำรุงรักษา') + ' :</span><div class="jobs">' + jobs + '</div></div></div></div>';
 
     // Section 1: one row per item; items with several readings get sub-rows (belt lines, U-G / V-G / W-G, points)
     const isB = (k) => k === 'b' || k.startsWith('b_') || /^b\d\d$/.test(k);
     const isA = (k) => k === 'a' || k.startsWith('a_') || /^a\d\d$/.test(k);
+    const wpAlignBody = (rec0 = rec) => {
+      const f0 = FIGS.wpAlign, av = (rec0.v && rec0.v['1.7']) || {};
+      const pins = Object.entries(f0.boxes).map(([bk, [x, y]]) => {
+        const val = av[bk];
+        return val ? `<span style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);font-size:11px;font-weight:700;color:#1D4ED8;white-space:nowrap">${esc(val)}</span>` : '';
+      }).join('');
+      return `<div style="position:relative;display:block;width:100%;aspect-ratio:${f0.ar}"><img src="${f0.src}" style="width:100%;height:100%;display:block" alt="">${pins}</div>`;
+    };
     const rows1 = f.m.map(it => {
       const need = isNeeded(f, it, h), vals = need ? (rec.v[it.id] || {}) : {}, off = need ? '' : ' class="off"';
+      if (!need) return '';
       const v = (c) => pen(vals[c.k], judge(it, c.k, vals[c.k], vals, h) === 'ng');
-      const fill = (cells, t) => `<div class="fill">${t ? `<span>${esc(t)}</span>` : ''}${cells.map(c => `<span>${esc(c.l)}: ${v(c)}${c.u && vals[c.k] ? ` ${esc(c.u)}` : ''}</span>`).join('')}</div>`;
+      const fill = (cells, t) => `<div class="fill${it.type === 'vibTemp' ? ' vt' : ''}">${t ? `<span>${esc(t)}</span>` : ''}${cells.map(c => it.type === 'vibTemp' ? `<span>${esc(c.l)}: <span class="bv">${v(c)}</span> ${esc(c.u)}</span>` : `<span>${esc(c.l)}: ${v(c)}${c.u && vals[c.k] ? ` ${esc(c.u)}` : ''}</span>`).join('')}</div>`;
       const calc = need ? computed(it, vals, h, rec.v).filter(c => isFinite(c.v)) : [];
-      const calcFill = calc.length ? `<div class="fill">${calc.map(c => `<span>${esc(c.l)}: ${pen(fmt(c.v), c.st === 'ng')} ${esc(c.u)}</span>`).join('')}</div>` : '';
-      const spec = esc(specText(it, h));
-      const head = (n) => `<td${n > 1 ? ` rowspan="${n}"` : ''} style="vertical-align:top">${esc(it.id)} ${esc(it.label)}</td><td class="c"${n > 1 ? ` rowspan="${n}"` : ''}>${spec}</td>`;
-      if (it.type === 'ok' || it.type === 'choice') return `<tr${off}>${head(1)}<td colspan="2">${pen(vals.v, vals.v === 'ผิดปกติ')}</td><td class="rm"></td></tr>`;
+      const calcFill = calc.length ? `<div class="fill">${calc.map(c => `<span>${esc(c.k === 'avgTime' ? 'เวลาเฉลี่ย' : c.k === 'avgDosing' ? 'อัตราจ่ายเฉลี่ย' : c.l)}: ${pen(fmt(c.v), c.st === 'ng')} ${esc(c.u)}</span>`).join('')}</div>` : '';
+      // the spec as short as the paper sheet words it: the long ISO / tolerance wording lives in the reference cards
+      const spec = esc(it.judge === 'iso' || it.type === 'vibTemp' ? 'ตารางมาตรฐาน3' : it.judge === 'vpflow' ? 'ตารางมาตรฐาน4' : (it.judge === 'refT' || it.type === 'refr') ? 'ตารางมาตรฐาน1' : it.type === 'v3' ? `±${it.tol}% ของ Std.` : specText(it, h));
+      const head = (n) => {
+        const figImg = it.fig && FIGS[it.fig].inline ? `<img class="inl" src="${FIGS[it.fig].src}"${FIGS[it.fig].ar ? ` style="aspect-ratio:${FIGS[it.fig].ar}"` : ''} alt="">`
+          : it.fig === 'hexPlates' && (vals.v === 'Multi-pass' || vals.v === 'Single-pass') ? `<img class="inl" src="img/${vals.v === 'Multi-pass' ? 'hex_multi' : 'hex_single'}.png" style="height:175px;width:auto;max-width:100%;margin:4px auto 0" alt="">` : '';
+        return `<td${n > 1 ? ` rowspan="${n}"` : ''} style="vertical-align:top">${esc(it.id)} ${esc(it.label)}${figImg}</td><td class="c"${n > 1 ? ` rowspan="${n}"` : ''}>${spec}</td>`;
+      };
+      if (it.type === 'ok' || it.type === 'choice') {
+        const txt = it.fig === 'hexPlates' && vals.v ? `${vals.v} arrangement` : vals.v;
+        return `<tr${off}>${head(1)}<td colspan="2" class="c">${pen(txt, vals.v === 'ผิดปกติ')}</td><td class="rm"></td></tr>`;
+      }
+      // belt lines and insulation readings: one line each, as on the sheet — label left, value, unit at the right edge
+      const itemNote = f.id === 'WP' && it.id === '1.1' ? 'หลังแมกเนติก คอนแทคเตอร์'
+        : (f.id === 'VP' && it.id === '1.8') || (f.id === 'PCAC' && /^1\.(7|8|9|10|11|12|13)$/.test(it.id)) || ((f.id === 'BP' || f.id === 'CFP') && /^1\.[123]$/.test(it.id)) || (f.id === 'WP' && /^1\.[25]$/.test(it.id)) ? 'ค่าวัดหลังทำงาน' : '';
+      // label | value centred in the cell | unit, in three fixed lanes so every line lines up
+      const lvu = (l, val, u) => `<div class="lvu"><span>${l}</span><span>${val}</span><span>${u}</span></div>`;
+      if (it.type === 'belt') return Array.from({ length: it.n }, (_, i) => `<tr${off}>${i === 0 ? head(it.n) : ''}<td colspan="2" class="c">เส้นที่ ${i + 1} : <span class="bv">${v({ k: `l${i + 1}` })}</span> Kg.</td>${i === 0 ? `<td class="rm" rowspan="${it.n}">${itemNote}</td>` : ''}</tr>`).join('');
+      if (it.type === 'ins') return ['U-G', 'V-G', 'W-G'].map((k, i) => `<tr${off}>${i === 0 ? `<td rowspan="3" style="vertical-align:top">${esc(it.id)} ${esc(it.label)}</td>` : ''}<td class="c">${esc(it.spec)} &nbsp; ${k}</td><td colspan="2">${lvu('', v({ k }), '(MΩ)')}</td>${i === 0 ? `<td class="rm" rowspan="3">${itemNote}</td>` : ''}</tr>`).join('');
       if (it.type === 'vunb') return `<tr${off}>${head(1)}<td colspan="2">${calcFill}</td><td class="rm"></td></tr>`;
+      if (it.type === 'align') return `<tr${off}><td style="vertical-align:top;border-right:none">${esc(it.id)} ${esc(it.label)}</td><td colspan="4" style="padding:4px 8px;border-left:none">${wpAlignBody()}</td></tr>`;
+      if (it.type === 'grid') {
+        const avgs = need ? computed(it, vals, h, rec.v) : [];
+        const avgCell = (k) => { const c = avgs.find(x => x.k === k); const val = c && isFinite(c.v) ? pen(fmt(c.v), c.st === 'ng') : ''; return lvu('', val, esc(it.unit || 'm/s')); };
+        const gridTbl = (p) => `<table style="width:auto;border-collapse:collapse;font-size:8.5px;margin:0"><tr>${['Point', 1, 2, 3, 4].map(x => `<th style="width:34px;height:15px;padding:1px 3px;background:#fff;border:1px solid #444;text-align:center;font-weight:${x === 'Point' ? 400 : 700}">${x}</th>`).join('')}</tr>${[1, 2, 3, 4].map(r => `<tr><th style="width:34px;height:15px;padding:1px 3px;background:#fff;border:1px solid #444;text-align:center;font-weight:700">${r}</th>${[1, 2, 3, 4].map(c => { const rv = need ? vals[`${p}${r}${c}`] : ''; return `<td style="width:34px;height:15px;padding:1px 3px;border:1px solid #444;text-align:center">${rv ? pen(rv, false) : ''}</td>`; }).join('')}</tr>`).join('')}</table>`;
+        return `<tr${off}>${head(1)}<td>${avgCell('b_avg')}</td><td>${avgCell('a_avg')}</td><td class="rm">${itemNote}</td></tr>
+          <tr${off}><td colspan="5" style="padding:5px 10px"><div style="display:flex;justify-content:space-around;align-items:center;gap:14px"><div style="display:flex;align-items:center;gap:8px"><span style="text-decoration:underline;font-weight:700">ก่อน</span>${gridTbl('b')}</div><div style="display:flex;align-items:center;gap:8px"><span style="text-decoration:underline;font-weight:700">หลัง</span>${gridTbl('a')}</div></div></td></tr>`;
+      }
       const rows = rowsOf(it, h), cells = rows.flatMap(r => r.c);
-      const rla = cells.find(c => c.k === 'rla'), note = rla && vals.rla ? `RLA ${pen(vals.rla)} A` : '';
+      const note = itemNote;
       const main = rows.filter(r => !r.c.some(c => c.k === 'rla'));
       // a plain before / after reading: its two columns
       if (it.type === 'value') {
@@ -1853,47 +1699,77 @@
         return `<tr${off}>${head(1)}<td>${bRows.map(r => fill(r.c)).join('')}</td><td>${aRows.map(r => fill(r.c)).join('')}</td><td class="rm">${note}</td></tr>`;
       // anything else: one sub-row per reading row, the reading spread across both value columns
       const subs = main.map(r => fill(r.c, r.t && r.t !== 'ค่าหลังทำงาน' ? r.t : ''));
-      if (calcFill) subs.push(calcFill);
+      if (calcFill) subs.push({ html: calcFill, avg: true });
       if (!subs.length) subs.push('');
-      return subs.map((s, i) => `<tr${off}>${i === 0 ? head(subs.length) : ''}<td colspan="2">${s}</td>${i === 0 ? `<td class="rm"${subs.length > 1 ? ` rowspan="${subs.length}"` : ''}>${note}</td>` : ''}</tr>`).join('');
+      return subs.map((s, i) => {
+        const isAvg = typeof s === 'object' && s.avg;
+        const body = isAvg ? s.html : s;
+        return `<tr${off}>${i === 0 ? head(subs.length) : ''}<td colspan="2"${isAvg ? ' style="background:#F2F4F7;font-weight:700;border-top:1.5px solid #444"' : ''}>${body}</td>${i === 0 ? `<td class="rm"${subs.length > 1 ? ` rowspan="${subs.length}"` : ''}>${note}</td>` : ''}</tr>`;
+      }).join('');
     }).join('');
-    const sec1 = `<div class="sec">1. การตรวจข้อมูลการทำงานของเครื่อง</div><table><colgroup><col style="width:35%"><col style="width:16%"><col style="width:18%"><col style="width:18%"><col style="width:13%"></colgroup>
+    const cols1 = f.id === 'VP' || f.id === 'BP' ? ['40%', '13%', '18%', '18%', '11%'] : ['35%', '16%', '18%', '18%', '13%'];
+    const sec1 = `<div class="sec">1. การตรวจข้อมูลการทำงานของเครื่อง</div><table><colgroup>${cols1.map(w => `<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr><th>หัวข้อการตรวจ</th><th>ค่ากำหนดเฉพาะ</th><th>ค่าวัดก่อนทำงาน</th><th>ค่าวัดหลังทำงาน</th><th>หมายเหตุ</th></tr></thead><tbody>${rows1}</tbody></table>`;
 
     // Section 2: tick boxes; the reason of a task not done goes in its remark
     const sec2 = f.t ? `<div class="sec">2. หัวข้อตรวจเช็ค/ทำงาน</div><table><colgroup><col><col style="width:52px"><col style="width:52px"><col style="width:150px"></colgroup>
       <thead><tr><th style="text-align:left">หัวข้อการตรวจเช็ค/ทำงาน</th><th>เสร็จ</th><th>ไม่เสร็จ</th><th>หมายเหตุ</th></tr></thead><tbody>${f.t.map(t => {
-        const need = isNeeded(f, t, h), s = need ? rec.t[t.id] : '', why = need && s === 'notdone' ? (rec.tn || {})[t.id] : '';
+        const need = isNeeded(f, t, h);
+        if (!need) return '';
+        const s = rec.t[t.id], why = need && s === 'notdone' ? (rec.tn || {})[t.id] : '';
         return `<tr${need ? '' : ' class="off"'}><td>${esc(t.id)} ${esc(t.label)}</td><td class="c"><span class="bx">${s === 'done' ? '✓' : ''}</span></td><td class="c"><span class="bx">${s === 'notdone' ? '✓' : ''}</span></td><td class="rm">${pen(why, true)}</td></tr>`;
       }).join('')}</tbody></table>` : '';
 
     // Advice entries of section 3, when any were filled
     const rrAll = (RR[rec.form] || {}).rows || [];
     const rr = Object.entries(rec.rr || {}).map(([id, x]) => {
-      const row = rrAll[+id.split('.')[2] - 1];
-      const typed = row && row.cells ? row.cells.map(c => x[c.k] ? `${c.l} ${x[c.k]}${c.u ? ' ' + c.u : ''}` : '').filter(Boolean).join(' · ') : (x.r === 'ng' ? 'ผิดปกติ' : x.r === 'ok' ? 'ปกติ' : '');
-      return `<tr><td>${esc(id)} ${esc(row ? row.l : '')}</td><td>${pen(typed, x.st === 'ng' || x.r === 'ng')}</td><td class="rm">${esc(x.n || '')}</td></tr>`;
+      const row = rrAll[+id.split('.')[2] - 1], bad = x.st === 'ng' || x.r === 'ng';
+      const cl = row && row.cells ? row.cells : null, val = (c) => x[c.k] ? pen(x[c.k] + (c.u ? ' ' + c.u : ''), bad) : '';
+      let mid;
+      if (cl && cl.some(c => c.k === 'b' || c.k === 'a')) mid = '<td class="c">' + cl.filter(c => c.k === 'b').map(val).join('') + '</td><td class="c">' + cl.filter(c => c.k === 'a').map(val).join('') + '</td>';
+      else if (cl) mid = '<td colspan="2" class="c">' + cl.map(c => x[c.k] ? pen(c.l + ' ' + x[c.k] + (c.u ? ' ' + c.u : ''), bad) : '').filter(Boolean).join(' · ') + '</td>';
+      else mid = '<td colspan="2" class="c">' + pen(x.r === 'ng' ? 'ผิดปกติ' : x.r === 'ok' ? 'ปกติ' : '', bad) + '</td>';
+      return '<tr><td>' + esc(id) + ' ' + esc(row ? row.l : '') + '</td>' + mid + '<td class="rm">' + esc(x.n || '') + '</td></tr>';
     }).join('');
-    const sec3 = rr ? `<div class="sec">3. Review-Revise (แนะนำ)</div><table><colgroup><col style="width:45%"><col><col style="width:25%"></colgroup>${rr}</table>` : '';
+    const sec3 = rr ? '<div class="sec">3. Review-Revise (แนะนำ)</div><table><colgroup><col style="width:40%"><col style="width:18%"><col style="width:18%"><col style="width:24%"></colgroup><thead><tr><th style="text-align:left">หัวข้อ</th><th>ค่าก่อนทำ</th><th>ค่าหลังทำ</th><th>หมายเหตุ</th></tr></thead><tbody>' + rr + '</tbody></table>' : '';
 
     // Reference cards: the diagrams the items point to, then the sheet's standard tables
     const tbl = (head, rows) => `<table><tr>${head.map(x => `<th>${esc(x)}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</table>`;
-    const cards = [...new Set(f.m.map(i => i.fig).filter(Boolean))].map(k => [FIGS[k].cap.split(' (')[0], `<img src="${FIGS[k].src}" alt="">`]);
+    const cards = [...new Set(f.m.map(i => i.fig).filter(k => k && !FIGS[k].inline && k !== 'wpAlign' && !(k === 'hexPlates' && (rec.v['1.17'] || {}).v)))].map(k => [FIGS[k].cap.split(' (')[0], `<img src="${FIGS[k].src}" alt="">`, false, FIGS[k].h]);
     [...new Set(f.m.map(i => i.ref).filter(Boolean))].forEach(r => cards.push(
       r === 'iso' ? ['ตารางมาตรฐาน3 (ISO 10816)', '<img src="img/iso_10816.png" alt="">']
       : r === 'belt' ? ['ตารางมาตรฐาน2', '<img src="img/belt_table.png" alt="">']
       : r === 'refr' ? ['ตารางมาตรฐาน1 · น้ำยา', tbl(['น้ำยา', 'ดูด °C', 'ดูด psi', 'จ่าย °C', 'จ่าย psi'], Object.entries(REFR).map(([k, x]) => [k, x.sT.join('–'), x.sP.join('–'), x.dT.join('–'), x.dP.join('–')]))]
       : ['ตารางมาตรฐาน4 · Flow', tbl(['Model', 'l/min', 'm³/hr'], Object.entries(VP_FLOW).map(([k, x]) => [k, ...x]))]));
-    const refs = cards.length ? `<div class="refs" style="grid-template-columns:repeat(${Math.min(cards.length, 3)},1fr)">${cards.map(([t, body]) => `<div class="s1card"><div class="s1card-t">${esc(t)}</div><div class="s1card-i">${body}</div></div>`).join('')}</div>` : '';
-
+    if (f.id === 'AHU') cards.push(['สูตรคำนวณปริมาณลม (CMM)', `<svg viewBox="0 0 360 190" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%" font-family="Sarabun, Tahoma, Arial, sans-serif" fill="#111">
+<text x="180" y="16" text-anchor="middle" font-size="12.5" font-weight="700">CMM (m³/min) = Air Velocity (m/sec) × Area (m²) × 60</text>
+<circle cx="45" cy="64" r="27" fill="none" stroke="#111" stroke-width="1.7"/>
+<line x1="45" y1="64" x2="72" y2="64" stroke="#111" stroke-width="1.7"/><circle cx="45" cy="64" r="1.8"/>
+<text x="58" y="57" text-anchor="middle" font-size="8" font-weight="700">Radius</text>
+<text x="95" y="58" font-size="10.5" font-weight="700" font-style="italic">Area (A) = π × r²</text>
+<text x="95" y="72" font-size="9">Where π = 3.14 and r² = radius × radius</text>
+<rect x="18" y="122" width="72" height="42" fill="none" stroke="#111" stroke-width="1.7"/>
+<rect x="22" y="126" width="64" height="34" fill="none" stroke="#111" stroke-width="0.8"/>
+<text x="98" y="146" font-size="10" font-weight="700">Height (H)</text>
+<text x="54" y="180" text-anchor="middle" font-size="10" font-weight="700">Width (W)</text>
+<text x="130" y="170" font-size="10.5" font-weight="700" font-style="italic">Area (A) = Width (W) × Height (H)</text>
+</svg>`, true]);
     // Footer: comment, the scope of each round, signatures, motto
     const note = [h.comment, ...Object.entries(rec.tn || {}).map(([id, n]) => `ข้อ ${id} ไม่เสร็จ: ${n}`)].filter(Boolean).join(' · ');
+    // With a single reference card, the comment box sits beside it as a card of the same size (half and half);
+    // otherwise it runs full width under the cards
+    const besideOne = cards.length === 1;
+    const card = ([t, body, , hgt]) => `<div class="s1card"${hgt ? ` style="height:${hgt}px"` : ''}><div class="s1card-t">${esc(t)}</div><div class="s1card-i">${body}</div></div>`;
+    const cmtCard = (hgt) => `<div class="s1card cmt-card"${hgt ? ` style="height:${hgt}px"` : ''}><div class="s1card-t">Other Comment / Alarm Code</div><div class="cmt-lines">${pen(note)}</div></div>`;
+    const refs = !cards.length ? '' : besideOne
+      ? `<div class="refs" style="grid-template-columns:1fr 1fr">${card(cards[0])}${cmtCard(cards[0][3])}</div>`
+      : `<div class="refs" style="grid-template-columns:${cards.map(c => c[2] ? '1.7fr' : '1fr').join(' ')}">${cards.map(card).join('')}</div>`;
     const R = f.rules || {}, rng = (r) => r === 'all' ? 'ทำทุกหัวข้อ' : `ข้อ ${(r || []).join(', ')}`;
-    const notes = f.kind === 'daily' ? '' : `<div class="notes">${f.periods.map(p => `<div>- งานบำรุงรักษา ${S1_PERIOD[p] || p} : ${rng(R[p])}</div>`).join('')}${R.repair ? `<div>- งานซ่อม ${rng(R.repair)}</div>` : ''}</div>`;
+    const notes = f.kind === 'daily' ? '' : `<div class="notes">${f.periods.map(p => `<div>- งานบำรุงรักษา ${S1_PERIOD[p] || p} : ${rng(R[p])}</div>`).join('')}${R.repair ? `<div>- งานซ่อม ${rng(R.repair)}</div>` : ''}${f.id === 'WP' ? '<div>หมายเหตุ : ข้อ 1.8 มอเตอร์ 1 เฟสไม่ต้องทำ</div>' : ''}</div>`;
     const html = `<div class="s1"><div class="s1-in">
-      <div class="hdr"><div class="logo"><b>muRata</b><small>INNOVATOR IN ELECTRONICS</small></div><div class="title">Inspection sheet of ${esc(S1_TITLE[f.id] || f.name)}</div><div class="code">${esc(f.code)}</div></div>
+      <div class="hdr"><div class="logo"><img src="img/murata_logo.png" alt="Murata"></div><div class="title">Inspection sheet of ${esc(S1_TITLE[f.id] || f.name)}</div><div class="code">${esc(f.code)}</div></div>
       ${meta}${sec1}${sec2}${sec3}${refs}
-      <div class="cmt"><div class="cmt-l">Other Comment / Alarm Code</div><div class="cmt-v">${pen(note)}</div></div>
+      ${besideOne ? '' : `<div class="cmt"><div class="cmt-l">Other Comment / Alarm Code</div><div class="cmt-v">${pen(note)}</div></div>`}
       ${notes}
       <div class="sigs">${['Engineer', 'Checker', 'Service By', 'Customer'].map(r => `<div class="sig"><div class="sig-v">${r === 'Service By' ? esc(h.inspector) : ''}</div><div>${r}</div></div>`).join('')}</div>
       <div class="motto">"มาตรฐานคือหัวใจของการทำงานของเรา"</div>
@@ -1904,13 +1780,18 @@
   function fitS1(root) {
     root.querySelectorAll('.s1').forEach(pg => {
       const inn = pg.querySelector('.s1-in'); inn.style.transform = ''; inn.style.width = '';
-      const room = pg.clientHeight - 2 * inn.offsetTop, need = inn.scrollHeight;
-      if (need > room) { const k = room / need; inn.style.transform = `scale(${k})`; inn.style.width = `${742 / k}px`; }
+      // 8 px spare: phones lay Thai text out a little taller than the preview measures
+      const room = pg.clientHeight - 2 * inn.offsetTop - 8;
+      // Shrinking widens the content box, and full-width pictures grow taller with it: measure again until it fits
+      let k = 1;
+      for (let i = 0; i < 6 && inn.scrollHeight * k > room; i++) {
+        k = Math.min(k * 0.995, room / inn.scrollHeight);
+        inn.style.transform = `scale(${k})`; inn.style.width = `${742 / k}px`;
+      }
     });
   }
 
-  // Printing uses the new style 1 sheet (A4, any form); the scanned original stays one tap away for the PM forms
-  const PRINT_STYLE = 'insp.printStyle';
+  // Printing: the style 1 sheet on A4, for any form
   function showPrint(id) {
     form = null; S = null;
     const rec = store.get(HIST, []).find(r => r.id === id);
@@ -1919,36 +1800,28 @@
       $('app').innerHTML = `<section class="group"><div class="card"><p class="empty">ไม่พบผลตรวจนี้ในมือถือเครื่องนี้</p></div></section>`;
       return;
     }
-    const old = canPrint(rec.form) && store.get(PRINT_STYLE, 'new') === 'old';
-    const s = old ? buildSheet(rec) : buildStyle1(rec);
-    const page = old ? `${(s.L.page[0] / 72).toFixed(2)}in ${(s.L.page[1] / 72).toFixed(2)}in` : 'A4';
-    $('printHost').innerHTML = `<style>@page { size: ${page}; margin: 0; }</style>${s.html}`;
-    $('app').innerHTML = `<div class="large"><h1>ใบตรวจ ${esc(rec.form)}</h1><p>${old ? 'ข้อมูลที่กรอกลงบนฟอร์มเดิม' : 'ใบตรวจแบบใหม่ A4 จากข้อมูลที่กรอก'} ตัวเลขสีแดง = นอกเกณฑ์ ช่องลายเซ็นเว้นไว้ให้เซ็นจริง</p></div>
-      ${canPrint(rec.form) ? `<section class="group"><div class="seg" role="radiogroup" aria-label="แบบใบพิมพ์">
-        <label><input type="radio" name="pstyle" value="new"${old ? '' : ' checked'}><span>แบบใหม่</span></label>
-        <label><input type="radio" name="pstyle" value="old"${old ? ' checked' : ''}><span>ใบสแกนเดิม</span></label></div></section>` : ''}
+    const s = buildStyle1(rec);
+    $('printHost').innerHTML = `<style>@page { size: A4; margin: 0; }</style>${s.html}`;
+    $('app').innerHTML = `<div class="large"><h1>ใบตรวจ ${esc(rec.form)}</h1><p>ใบตรวจ A4 จากข้อมูลที่กรอก ตัวเลขสีแดง = นอกเกณฑ์ ช่องลายเซ็นเว้นไว้ให้เซ็นจริง</p></div>
       <section class="group"><button type="button" class="btn-block primary" id="doPrint">พิมพ์ / บันทึกเป็น PDF</button>
       <p class="group-f">ในหน้าพิมพ์ เลือกเครื่องพิมพ์ หรือเลือก "บันทึกเป็น PDF" (Android) · กดแชร์แล้วเลือกพิมพ์ จากนั้นถ่างนิ้วที่ตัวอย่างเพื่อได้ PDF (iPhone)</p></section>
       <div class="pprev" id="pprev"><div class="pprev-in" id="pprevIn">${s.html}</div></div>`;
-    $('app').querySelectorAll('input[name="pstyle"]').forEach(r => r.addEventListener('change', () => { store.set(PRINT_STYLE, r.value); showPrint(id); }));
-    // the print copy is hidden until printing, so it can't measure itself: it takes the preview's fit
-    if (!old) {
+    // the print copy is hidden until printing, so it can't measure itself: it takes the preview's fit.
+    // Pictures and fonts that load late make the sheet taller, so measure again once they are in.
+    const imgsIn = (el) => Promise.all([...el.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
+    const refit = () => {
+      if (!$('pprevIn')) return;
       fitS1($('pprevIn'));
       const a = $('pprevIn').querySelector('.s1-in'), b = $('printHost').querySelector('.s1-in');
       b.style.transform = a.style.transform; b.style.width = a.style.width;
-    }
-    // Without the form picture the printout is bare numbers: say so plainly instead of showing a broken image
-    const bgFailed = () => {
-      if ($('bgErr')) return;
-      $('pprev').insertAdjacentHTML('beforebegin', `<div class="banner" id="bgErr" role="alert"><b>ภาพใบฟอร์มยังไม่อยู่ในเครื่องนี้</b>ต่ออินเทอร์เน็ตแล้วเปิดแอปใหม่ 1 ครั้ง ระบบจะเก็บไว้ให้ใช้ตอนออฟไลน์ ตอนนี้พิมพ์ได้แค่ตัวเลข</div>`);
     };
-    [$('pprevIn'), $('printHost')].forEach(h => { const im = h.querySelector('img.pbg'); if (im) { im.addEventListener('error', bgFailed, { once: true }); if (im.complete && !im.naturalWidth) bgFailed(); } });
+    refit();
+    Promise.all([imgsIn($('pprevIn')), document.fonts ? document.fonts.ready : 0]).then(refit);
     const fit = () => { const box = $('pprev'); if (!box) return; const k = box.clientWidth / s.W; $('pprevIn').style.transform = `scale(${k})`; box.style.height = `${(s.H * k).toFixed(0)}px`; };
     fit(); window.addEventListener('resize', fit, { once: true });
+    // print once the reference pictures have loaded, or they come out blank
     $('doPrint').addEventListener('click', () => {
-      const img = $('printHost').querySelector('img');
-      const go = () => window.print();
-      if (img && !img.complete) img.addEventListener('load', go, { once: true }); else go();
+      Promise.all([imgsIn($('printHost')), imgsIn($('pprevIn'))]).then(() => { refit(); window.print(); });
     });
     window.scrollTo(0, 0);
   }
