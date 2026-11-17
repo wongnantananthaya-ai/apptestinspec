@@ -235,8 +235,9 @@
     /* ---------- Diagrams from the paper sheet ---------- */
     .fig { display: block; width: 100%; margin-top: 12px; padding: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF; border: 0.5px solid var(--sep); text-align: left; }
     .fig img { display: block; width: 100%; height: auto; max-height: 420px; object-fit: contain; background: #FFFFFF; }
-    .fig .fig-pic { position: relative; display: block; width: min(100%, calc(420px * var(--ar))); aspect-ratio: var(--ar); margin: 0 auto; padding: 0; background: none; }
-    .fig .fig-pic img { width: 100%; height: 100%; max-height: none; }
+    .fig .fig-pic { position: relative; display: block; width: min(100%, calc(420px * var(--ar))); margin: 0 auto; padding: 0; background: none; }
+    /* the picture keeps its own shape (no aspect-ratio box: older iPhone Safari stretched it); markers sit on it by % */
+    .fig .fig-pic img { width: 100%; height: auto; max-height: none; }
     .fig-pt { position: absolute; transform: translate(-50%, -50%); border: 3px solid transparent; border-radius: 6px; pointer-events: none; transition: border-color .15s, background-color .15s, box-shadow .15s; }
     .fig-pt.on { border-color: var(--ng); background: rgba(194, 31, 31, 0.14); box-shadow: 0 0 0 4px rgba(194, 31, 31, 0.18); }
     .fig-val { position: absolute; transform: translate(-50%, -50%); font-style: normal; font-size: clamp(10px, 2.6vw, 14px); font-weight: 700; color: #1D4ED8; pointer-events: none; white-space: nowrap; }
@@ -262,6 +263,7 @@
     .task .seg span { gap: 5px; }
     .task .seg input:checked + span.done { background: var(--ok-tint); color: var(--ok); box-shadow: none; }
     .task .seg input:checked + span.notdone { background: var(--ng-tint); color: var(--ng); box-shadow: none; }
+    .task .seg input:checked + span.skip { background: var(--watch-tint); color: var(--watch); box-shadow: none; }
     .note { display: block; width: 100%; min-height: 64px; margin-top: 10px; padding: 10px 12px; border: 1.5px solid transparent; border-radius: 10px; background: var(--fill); font-size: var(--fs-1); resize: vertical; }
     .note:focus { outline: none; border-color: var(--accent); background: var(--card); }
     .note.is-invalid { border-color: var(--ng); }
@@ -390,7 +392,7 @@
     .s1 tr.off .fill span { border-bottom-color: #CCC; }
     .s1 tr.off .bx { border-color: #BBB; }
     .s1 .refs { display: grid; gap: 6px; margin-bottom: 6px; align-items: stretch; }
-    .s1 .s1card { border: 1px solid #3A4A60; padding: 3px; height: 165px; display: flex; flex-direction: column; }
+    .s1 .s1card { border: 1px solid #3A4A60; padding: 3px; height: calc(165px + var(--ch, 0px)); display: flex; flex-direction: column; }
     .s1 .s1card-t { font-size: 9.8px; font-weight: 800; text-align: center; border-bottom: 1px solid #3A4A60; padding: 2px 0; margin-bottom: 3px; background: #E6ECF4; color: #1F3A68; }
     .s1 .s1card-i { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
     .s1 .s1card-i img { width: 100%; height: 100%; object-fit: contain; display: block; }
@@ -400,9 +402,18 @@
     .s1 .cmt-l { font-weight: 700; font-size: 9.8px; margin-bottom: 3px; }
     .s1 .cmt-v { min-height: 13px; border-bottom: 1px dotted #666; padding-bottom: 1px; }
     /* the comment as a card beside a single reference card: same frame and title bar, ruled lines to write on */
-    .s1 .cmt-lines { flex: 1; padding: 2px 6px; line-height: 22px; text-align: left; background-image: repeating-linear-gradient(to bottom, transparent 0 21px, #999 21px 22px); background-clip: content-box; }
+    .s1 .cmt-lines { flex: 1; position: relative; margin: 2px 6px; line-height: 22px; text-align: left; }
+    /* ruled writing lines as real borders: a 1 px background gradient vanishes when the sheet is scaled down to fit a screen */
+    .s1 .rules { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .s1 .rules i { display: block; height: 22px; border-bottom: 1px solid #999; box-sizing: border-box; }
+    .s1 .cmt-txt { position: relative; }
     .s1 .notes { font-size: 9px; line-height: 1.3; margin-bottom: 4px; }
     .s1 .sigs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    /* A short sheet fills its page (fitS1 sets these on .s1-in): taller rows (--rp), bigger reference cards (--ch),
+       more ruled comment lines (--cm), and the footer pushed to the bottom (--ft) */
+    .s1 .sec + table td { padding-top: calc(2px + var(--rp, 0px)); padding-bottom: calc(2px + var(--rp, 0px)); }
+    .s1 .cmt .cmt-v { position: relative; min-height: calc(22px + var(--cm, 0px)); line-height: 22px; border-bottom: 0; padding-bottom: 0; }
+    .s1 .foot { margin-top: var(--ft, 0px); }
     .s1 .sig { border: 1px solid #3A4A60; height: 40px; display: flex; flex-direction: column; justify-content: flex-end; padding: 3px 6px; text-align: center; font-size: 9.2px; font-weight: 600; }
     .s1 .sig-v { border-bottom: 1px dotted #333; margin-bottom: 2px; min-height: 12px; font-weight: 600; color: #1F3A68; }
     .s1 .motto { font-weight: 800; margin-top: 5px; font-size: 9.8px; text-align: center; }
@@ -460,7 +471,7 @@
     del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
   };
   // Service color per form (CSS [data-svc]): air, cooling, cooling tower, blower, chemical, heat, vacuum, water
-  const SVC = { EF: 'air', SF: 'air', VF: 'air', ACP: 'air', AD: 'air', AHU: 'cool', PCAC: 'cool', CT: 'tower', BP: 'blow', CFP: 'chem', HEX: 'heat', VP: 'vac', WP: 'water' };
+  const SVC = { EF: 'air', SF: 'air', VF: 'air', ACP: 'air', AD: 'air', AHU: 'cool', PCAC: 'cool', CT: 'tower', BP: 'blow', MX: 'blow', CFP: 'chem', HEX: 'heat', VP: 'vac', VPL: 'vac', WP: 'water' };
   // One outline icon per machine: Tabler Icons v3.19.0 (MIT, tabler.io/icons), copied in so the app works offline.
   // Drawn with the stroke set in .mtile svg; colour comes from the machine's [data-svc] --svc-icon.
   const ICONS = {
@@ -478,6 +489,8 @@
     ACP: '<path d="M3 10v6" /><path d="M12 5v3" /><path d="M10 5h4" /><path d="M5 13h-2" /><path d="M6 10h2l2 -2h3.382a1 1 0 0 1 .894 .553l1.448 2.894a1 1 0 0 0 .894 .553h1.382v-2h2a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-2v-2h-3v2a1 1 0 0 1 -1 1h-3.465a1 1 0 0 1 -.832 -.445l-1.703 -2.555h-2v-6z" />',
     AD: '<path d="M18.963 14.938a6.54 6.54 0 0 0 -.899 -4.06l-4.89 -7.26c-.42 -.626 -1.287 -.804 -1.936 -.398a1.376 1.376 0 0 0 -.41 .397l-1.282 1.9m-1.625 2.415l-1.986 2.946c-1.695 2.837 -1.035 6.44 1.567 8.545c2.602 2.105 6.395 2.105 8.996 0a6.83 6.83 0 0 0 1.376 -1.499" /><path d="M3 3l18 18" />',
   };
+  ICONS.VPL = ICONS.VP;
+  ICONS.MX = '<path d="M12 13m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M14.167 10.5c.722 -1.538 1.156 -3.043 1.303 -4.514c.22 -1.63 -.762 -2.986 -3.47 -2.986s-3.69 1.357 -3.47 2.986c.147 1.471 .581 2.976 1.303 4.514" /><path d="M13.169 16.751c.97 1.395 2.057 2.523 3.257 3.386c1.3 1 2.967 .833 4.321 -1.512c1.354 -2.345 .67 -3.874 -.85 -4.498c-1.348 -.608 -2.868 -.985 -4.562 -1.128" /><path d="M8.664 13c-1.693 .143 -3.213 .52 -4.56 1.128c-1.522 .623 -2.206 2.153 -.852 4.498s3.02 2.517 4.321 1.512c1.2 -.863 2.287 -1.991 3.258 -3.386" />';   // Tabler "propeller"
   const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>';   // Tabler "trash"
   const machIcon = (id) => `<span class="mtile" data-svc="${SVC[id] || ''}" aria-hidden="true"><svg viewBox="0 0 24 24">${ICONS[id] || ''}</svg></span>`;
   // PM locations, from สถานที่_PM.txt (no MTL-9 / MTL-13)
@@ -501,13 +514,17 @@
     'R-32':  { sT: [3, 16], sP: [70, 175], dT: [70, 115], dP: [340, 450] },
   };
   const VP_FLOW = { 'CT4-65LE': [2.0, 120], 'CT3-60U': [7.0, 420], 'CT3-200U': [10.0, 600], 'CT4-450LE': [15.0, 900], 'CT3-350U': [12.0, 720], 'CT3-700': [15.0, 900] };
+  // Low vacuum (water ring) pumps, ตารางมาตรฐาน4 of CE97F1006J (Low Vacuum): [min l/min, max l/min, min m³/hr, max m³/hr]
+  const VPL_FLOW = { SKL521: [11, 19, 0.6, 1.2], SKH522: [11, 19, 0.6, 1.2], SKH542: [14, 26, 0.9, 1.5], SKH562: [18, 32, 1.1, 1.9], SKL741: [28, 52, 1.7, 3.1], 'SW-150S': [12, 14, 0.72, 0.84] };
+  // a form's flow table (form.flow, else the high vacuum one) as rows for the reference cards
+  const flowRows = (t) => Object.entries(t).map(([k, x]) => x.length === 4 ? [k, `${x[0]}–${x[1]}`, `${x[2]}–${x[3]}`] : [k, ...x]);
   const BELT = [['A', 15, 11, '< 80'], ['A', 20, 15, '80–100'], ['A', 31, 25, '101–132'], ['A', 31, 25, '> 132'], ['B', 31, 25, '< 125'], ['B', 41, 31, '126–160'], ['B', 51, 41, '161–200'], ['C', 71, 51, '< 200'], ['C', 82, 61, '201–250'], ['C', 92, 71, '251–355']];
   const tbl = (head, rows) => `<div class="tbl"><table><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`;
   const REF_HTML = {
     belt: () => `<details class="ref"><summary>ตารางมาตรฐาน 2 · ความตึงสายพาน</summary>${tbl(['ร่อง', 'ใหม่ kg', 'เดิม kg', 'พูลเล่ย์เล็ก mm'], BELT)}</details>`,
     iso: () => `<details class="ref"><summary>ISO 10816 · ผ่านเมื่อ ≤ satisfactory</summary>${tbl(['Class', 'good ≤', 'satisfactory ≤', 'unsatisfactory ≤'], Object.entries(ISO).map(([c, v]) => [c, ...v]))}</details>`,
     refr: () => `<details class="ref"><summary>ตารางมาตรฐาน 1 · น้ำยา</summary>${tbl(['น้ำยา', 'ดูด °C', 'ดูด psi', 'จ่าย °C', 'จ่าย psi'], Object.entries(REFR).map(([k, v]) => [k, v.sT.join('–'), v.sP.join('–'), v.dT.join('–'), v.dP.join('–')]))}</details>`,
-    vpflow: () => `<details class="ref"><summary>ตารางมาตรฐาน 4 · Flow</summary>${tbl(['Model', 'l/min', 'm³/hr'], Object.entries(VP_FLOW).map(([k, v]) => [k, ...v]))}</details>`,
+    vpflow: () => `<details class="ref"><summary>ตารางมาตรฐาน 4 · Flow</summary>${tbl(['Model', 'l/min', 'm³/hr'], flowRows((form && form.flow) || VP_FLOW))}</details>`,
   };
 
   // =====================================================================
@@ -531,6 +548,10 @@
     bp:        { src: 'img/bp_points.png',    inline: true, cap: 'ตำแหน่งจุดวัด 1–3 ของชุดเกียร์และมอเตอร์', ar: 1102 / 794,
                  pts: { 1: [0.117, 0.548, 0.089, 0.083], 2: [0.355, 0.539, 0.087, 0.083], 3: [0.860, 0.605, 0.087, 0.083] } },
     vp:        { src: 'img/vp_points.png',    inline: true, cap: 'ตำแหน่งจุดวัด 1–4 ตามแบบปั๊ม CT3 / CT4 / FT3' },
+    vpl:       { src: 'img/vpl_points.png',   ar: 1028 / 523, cap: 'ตำแหน่งจุดวัด 1–4 ของปั๊มสุญญากาศและมอเตอร์ (Vibration checking point)',
+                 pts: { 1: [0.887, 0.082, 0.078, 0.105], 2: [0.667, 0.086, 0.078, 0.105], 3: [0.464, 0.157, 0.078, 0.105], 4: [0.112, 0.153, 0.078, 0.105] } },
+    mx:        { src: 'img/mx_points.png',    ar: 863 / 1307, cap: 'ตำแหน่งจุดวัด 1–3 ของชุดเกียร์และมอเตอร์',
+                 pts: { 1: [0.852, 0.074, 0.104, 0.046], 2: [0.852, 0.145, 0.104, 0.046], 3: [0.913, 0.233, 0.104, 0.046] } },
     wp:        { src: 'img/wp_points.png',    inline: true, ar: 1366 / 930, cap: 'ตำแหน่งจุดวัด 1–3 ตามแบบปั๊ม (แนวตั้ง / แนวนอน)' },
     wpAlign:   { src: 'img/wp_alignment.png', ar: 2048 / 596,
                  boxes: { g0: [32.15, 23.15], g1: [32.15, 79.87], g2: [21.41, 50.34], g3: [42.92, 51.26],
@@ -611,6 +632,13 @@
       t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', 'ตรวจสอบการรั่วของน้ำมันเกียร์ และเปลี่ยนแผ่น Filter', 'อัดจารบี / ตรวจเช็คและเติมน้ำมันเกียร์ (ถ้ามี)', 'ตรวจสอบเสียงผิดปกติชุดเกียร์, มอเตอร์', 'เปลี่ยนชิ้นส่วนหลัก Bearing, Seal, Gasket, O-ring', 'ขัดล้างทำความสะอาดภายใน, พ่นสีเคลือบเกียร์, พ่นสีภายนอก', 'เปลี่ยน Bearing motor, เคลือบน้ำยา Varnish, อบขดลวดมอเตอร์']),
       rules: { '3M': ['1.1', '1.2', '1.4', '2.1-2.4'], '1Y': 'all', repair: 'all' } },
 
+    { id: 'MX', kind: 'pm', code: 'CE97F1012H', name: 'Agitator Mixer', th: 'เครื่องกวนผสม',
+      subtypes: ['MX', 'Other'], models: ['Pump'], panel: true, periods: ['1M', '1Y'],
+      m: [v3('1.1', { slash: true }), i3('1.2', undefined, { slash: true }), ins('1.3'),
+          vt('1.4', 3, 'ความสั่นสะเทือน / ความร้อน ชุดเกียร์และมอเตอร์', 'mx')],
+      t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', 'ตรวจสอบการรั่วของน้ำมันเกียร์', 'อัดจารบี / ตรวจเช็คและเติมน้ำมันเกียร์ (ถ้ามี)', 'ตรวจสอบเสียงผิดปกติชุดเกียร์, มอเตอร์', 'เปลี่ยนชิ้นส่วนหลัก Bearing, Seal, Gasket, O-ring', 'ขัดล้างทำความสะอาดภายใน, พ่นสีเคลือบเกียร์, พ่นสีภายนอก', 'เปลี่ยน Bearing motor, เคลือบน้ำยา Varnish, อบขดลวดมอเตอร์']),
+      rules: { '1M': ['1.1', '1.2', '1.4', '2.1-2.4'], '1Y': 'all', repair: 'all' } },
+
     { id: 'CFP', kind: 'pm', code: 'CE97F1012H', name: 'Chemical Feed Pump', th: 'ปั๊มจ่ายสารเคมี',
       subtypes: ['CHP', 'CP', 'WP', 'Other'], models: ['Pump'], panel: true, periods: ['3M'],
       m: [v3('1.1', { slash: true }), i3('1.2', undefined, { slash: true }), ins('1.3'),
@@ -644,6 +672,21 @@
           vt('1.8', 4, 'ความสั่นสะเทือน / ความร้อน ปั๊มและมอเตอร์', 'vp')],
       t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', '5ส บริเวณเครื่อง', 'ตรวจเช็คการรั่วของน้ำจากปั๊มสุญญากาศ', 'ตรวจสอบสภาพเกจวัดแรงดูด (vacuum gauge)', 'ทำความสะอาด Y-Strainer ของท่อด้านดูด', 'ทำความสะอาด Flow meter น้ำ', 'เปลี่ยนสายพาน, ตรวจสอบร่อง Pulley และปรับตั้ง Alignment', 'เก็บตัวอย่างน้ำมันเพื่อวิเคราะห์ (เขียนระบุหมายเลขเครื่อง)', 'ตรวจสอบระดับน้ำมันและเติมน้ำมัน ประมาณ ½ ของ Sight glass', 'เปลี่ยนชิ้นส่วนหลัก Bearing, Seal, Gasket, O-ring, Gear', 'ขัดล้างทำความสะอาดภายใน, พ่นสีเคลือบใบพัด, พ่นสีภายนอก', 'เปลี่ยน Bearing motor, เคลือบน้ำยา Varnish, อบขดลวดมอเตอร์']),
       rules: { '1M': ['1.1-1.6', '2.1-2.9'], '1Y': 'all', repair: 'all' } },
+
+    // Water ring vacuum pump: items keep the paper sheet's numbers (1.1–1.16), since its round scopes are written in them
+    { id: 'VPL', kind: 'pm', code: 'CE97F1006J', name: 'Vacuum Pump', th: 'ปั๊มสุญญากาศ · Low Vacuum',
+      subtypes: ['VP'], models: ['Pump', 'Motor'], panel: true, periods: ['1M', '6M', '1Y'], vpModel: true, flow: VPL_FLOW,
+      m: [v3('1.1', { rn: true }), i3('1.2'),
+          val('1.3', 'อุณหภูมิน้ำขาเข้าปั๊ม', null, 30, '°C', 'Thermo meter', { spec: '< 30 °C' }),
+          val('1.4', 'แรงดันน้ำขาเข้าปั๊ม', 2.0, 5.5, 'kg/cm²', 'Pressure gauge'),
+          it('1.5', 'value', 'อัตราการไหลของน้ำเข้าปั๊ม', { unit: 'l/min', judge: 'vpflow', flow: VPL_FLOW, tool: 'Flow meter', ref: 'vpflow' }),
+          ...[1, 2, 3, 4].map(p => val(`1.${5 + p}`, `ความร้อนปั๊มและมอเตอร์ขณะทำงาน จุดที่ ${p}`, null, 45, '°C', 'IR thermo meter', { spec: '< 45 °C', fig: 'vpl', pt: p })),
+          ...[1, 2, 3, 4].map(p => vib(`1.${9 + p}`, p, { fig: 'vpl', pt: p })),
+          val('1.14', 'Unload test (ปิดวาล์วด้านดูด 5 วินาที)', -760, -740, 'mmHg', 'Vacuum gauge', { neg: true }),
+          ins('1.15'),
+          it('1.16', 'align', 'ปรับตั้ง Alignment และเปลี่ยนลูกยาง Coupling', { tool: 'Dial gauge / Feeler gauge', fig: 'wpAlign' })],
+      t: tasks(['วัดค่าการทำงานของเครื่อง ตามข้อ 1', '5ส บริเวณเครื่อง', 'ตรวจเช็คการรั่วของน้ำจากปั๊มสุญญากาศ', 'ตรวจสอบสภาพเกจวัดแรงดูด (vacuum gauge)', 'ทำความสะอาด Y-Strainer ของท่อด้านดูด', 'ทำความสะอาด Flow meter น้ำ', 'ตรวจสอบสภาพของลูกยาง และปรับตั้งศูนย์ (Alignment)', 'เปลี่ยน Bearing, Mechanical seal, teflon ball ของปั๊มสุญญากาศ', 'ขัดล้างทำความสะอาดภายใน, พ่นสีกันสนิมปั๊มสุญญากาศ', 'เปลี่ยน Bearing motor, เคลือบน้ำยา Varnish, อบขดลวดมอเตอร์']),
+      rules: { '1M': ['1.1-1.13', '2.1-2.4'], '6M': ['1.1-1.16', '2.1-2.7'], '1Y': 'all', repair: ['1.1-1.16', '2.1-2.7'] } },
 
     { id: 'WP', kind: 'pm', code: 'CE97F1012H', name: 'Water Pump', th: 'ปั๊มน้ำ',
       subtypes: ['CP', 'CWP', 'WP', 'Other'], models: ['Pump', 'Motor'], panel: true, periods: ['3M', '1Y'], pumpState: true,
@@ -748,6 +791,14 @@
       rows: [chk('สภาพน้ำมันปั๊ม (สี / น้ำปน / ระดับ)', 'ป้องกันแรงดูดตก', 'ใส ไม่ขุ่นเป็นสีน้ำนม ระดับ ½ Sight glass', '1M'),
         chk('แนวโน้ม Unload test เทียบครั้งก่อน', 'จับการเสื่อมของปั๊มก่อนเสีย', '≤ -740 mmHg และแย่ลงไม่เกิน 10 mmHg', '1M'),
         chk('อุณหภูมิเรือนปั๊ม', 'ป้องกันปั๊มร้อนจนติดตาย', '< 70 °C', '1M', { cells: ba(null, 70, '°C') })] },
+    VPL: { draft: true, find: [['แรงดูดสุญญากาศไม่ถึงเกณฑ์ (Unload test)', 'จากน้ำซีล (Seal water) ไหลน้อยหรือร้อนเกิน วงแหวนน้ำในปั๊มไม่เต็ม'], ['ปั๊มและแบริ่งร้อนเกิน 45 °C', 'จาก Y-Strainer / Flow meter น้ำอุดตัน น้ำหล่อเย็นเข้าไม่พอ'], ['น้ำรั่วที่ Mechanical seal', 'จากซีลสึกและตะกรันในน้ำ ทำให้น้ำเข้าแบริ่ง'], ['สั่นสะเทือนสูงที่คัปปลิ้ง', 'จากลูกยางคัปปลิ้งสึกและศูนย์เพลา (Alignment) คลาดเคลื่อน']],
+      rows: [chk('อุณหภูมิน้ำซีลขาออกจากปั๊ม', 'ป้องกันแรงดูดตกเพราะน้ำร้อน', '< 40 °C (สูงกว่าน้ำขาเข้าไม่เกิน 10 °C)', '1M', { cells: [{ k: 'o', l: 'น้ำขาออก', u: '°C', max: 40 }] }),
+        chk('แนวโน้ม Unload test เทียบครั้งก่อน', 'จับการเสื่อมของปั๊มก่อนเสีย', '-740 ถึง -760 mmHg และแย่ลงไม่เกิน 10 mmHg', '1M'),
+        chk('ตะกรันในตัวปั๊มและท่อน้ำซีล', 'ป้องกันใบพัดเสียดสีและน้ำไหลน้อย', 'ไม่มีตะกรันหนา ท่อไม่ตีบ', '6M')] },
+    MX: { draft: true, find: [['น้ำมันเกียร์รั่วซึม', 'จากซีลเพลาออกและปะเก็นเสื่อม ระดับน้ำมันต่ำจนเฟืองสึก'], ['ชุดเกียร์ร้อนและสั่นสูง', 'จากน้ำมันเกียร์เสื่อมสภาพหรือแบริ่งสึก'], ['เพลากวนแกว่ง / คด', 'จากใบกวนไม่สมดุลหรือมีตะกอนเกาะใบกวน'], ['กระแสมอเตอร์เกินพิกัด', 'จากของเหลวหนืดขึ้นหรือใบกวนติดตะกอน']],
+      rows: [chk('ระดับและสภาพน้ำมันเกียร์', 'ป้องกันเฟือง/แบริ่งสึก', 'อยู่ระหว่างขีด H – L ไม่ขุ่น ไม่มีเศษโลหะ', '1M'),
+        chk('อุณหภูมิผิวเรือนเกียร์', 'ป้องกันเกียร์ไหม้', '< 70 °C', '1M', { cells: ba(null, 70, '°C') }),
+        chk('การแกว่งของเพลากวนและสภาพใบกวน', 'ป้องกันเพลาคดและแบริ่งเสีย', 'เพลาไม่แกว่ง ใบกวนไม่มีตะกอนเกาะ ไม่บิดงอ', '1Y')] },
     WP: { draft: true, find: [['น้ำรั่วที่ Gland packing / Mechanical seal เกินเกณฑ์', 'จากแพ็กกิ้งเสื่อมและเพลาสึก น้ำเข้าแบริ่ง'], ['แบริ่งปั๊ม/มอเตอร์ร้อนและสั่นสูง', 'จากศูนย์เพลา (Alignment) คลาดเคลื่อนและลูกยางคัปปลิ้งสึก'], ['แรงดันตก ปั๊มกินลม (Cavitation)', 'จาก Y-Strainer / Foot valve อุดตัน'], ['มอเตอร์ร้อน ตัด Overload', 'จากแรงดันไฟไม่สมดุล (Vunb) สูง']],
       rows: [chk('อัตรารั่วที่ Gland packing / Mechanical seal', 'ป้องกันน้ำเข้าแบริ่ง', 'Gland ≤ 5 หยด/นาที · Mechanical seal ต้องไม่รั่ว', '3M', { cells: ba(null, 5, 'หยด/นาที') }),
         chk('ความคลาดศูนย์เพลา (Alignment)', 'ป้องกันแบริ่ง/คัปปลิ้งเสียหาย', 'ระยะห่าง 1.0 – 3.0 mm ±0.2 · เยื้องศูนย์ ≤ 0.01 mm', '3M'),
@@ -840,7 +891,8 @@
       case 'value':
         if (item.judge === 'iso') return isoStatus(n, h);
         if (item.judge === 'refT') { const r = REFR[h.refr]; return r ? inRange(n, ...r.sT) : ''; }
-        if (item.judge === 'vpflow') return '';
+        // low vacuum: in the model's l/min range; high vacuum's table has no range, so it is not judged
+        if (item.judge === 'vpflow') { const f = item.flow && item.flow[h.vpModel]; return f ? inRange(n, f[0], f[1]) : ''; }
         if (item.min == null && item.max == null) return '';
         return inRange(n, item.min, item.max);
       case 'v3': { const nom = /RN|L-N/.test(key) ? 230 : 400; return Math.abs(n - nom) <= nom * item.tol / 100 ? 'ok' : 'ng'; }
@@ -883,7 +935,10 @@
     if (item.type === 'v3') return `±${item.tol}% ของ Std.${h.phase === '1' ? ' (230 V)' : item.rn ? ' (400 V · RN 230 V)' : ' (400 V)'}`;
     if (item.type === 'refr') { const r = REFR[h.refr]; return r ? `Low ${r.sP.join('–')} · High ${r.dP.join('–')} psi (${h.refr})` : 'เลือกชนิดน้ำยาในข้อมูลเครื่องก่อน'; }
     if (item.judge === 'refT') { const r = REFR[h.refr]; return r ? `${r.sT.join(' – ')} °C (${h.refr})` : 'เลือกชนิดน้ำยาในข้อมูลเครื่องก่อน'; }
-    if (item.judge === 'vpflow') { const f = VP_FLOW[h.vpModel]; return f ? `${f[0]} l/min ตามตาราง 4 (${h.vpModel})` : 'เลือกรุ่นปั๊มในข้อมูลเครื่องก่อน'; }
+    if (item.judge === 'vpflow') {
+      const f = (item.flow || VP_FLOW)[h.vpModel];
+      return !f ? 'เลือกรุ่นปั๊มในข้อมูลเครื่องก่อน' : item.flow ? `${f[0]} – ${f[1]} l/min ตามตาราง 4 (${h.vpModel})` : `${f[0]} l/min ตามตาราง 4 (${h.vpModel})`;
+    }
     if (item.judge === 'iso' || item.type === 'vibTemp') return h.vclass ? `ISO 10816 Class ${h.vclass} · ผ่าน ≤ ${ISO[h.vclass][1]} mm/s` : 'เลือก Class เครื่องในข้อมูลเครื่องก่อน';
     if (item.type === 'grid') return item.spec || `เฉลี่ย ${item.min} – ${item.max} m/s`;
     if (item.type === 'dosing') return 'ตามที่กำหนด';
@@ -1112,7 +1167,7 @@
       html += f.models.map(m => `<label class="row"><span class="row-label">Model ${esc(m)}</span><input class="row-input" data-hm="${esc(m)}" value="${esc(h.models[m] || '')}" placeholder="ไม่บังคับ" autocomplete="off"></label>`).join('');
       if (f.panel) html += inputRow('ตู้ไฟฟ้า', 'class="row-input code" data-h="panel"', h.panel, 'ไม่บังคับ');
       if (hasVib) html += `<label class="row"><span class="row-label">Class เครื่อง</span><select class="row-input" data-h="vclass"><option value="">เลือก</option>${CLASSES.map(([c, l]) => `<option value="${c}"${h.vclass === c ? ' selected' : ''}>${l}</option>`).join('')}</select></label>`;
-      if (f.vpModel) html += `<label class="row"><span class="row-label">รุ่นปั๊ม</span><select class="row-input" data-h="vpModel"><option value="">เลือก</option>${Object.keys(VP_FLOW).map(m => `<option${h.vpModel === m ? ' selected' : ''}>${m}</option>`).join('')}</select></label>`;
+      if (f.vpModel) html += `<label class="row"><span class="row-label">รุ่นปั๊ม</span><select class="row-input" data-h="vpModel"><option value="">เลือก</option>${Object.keys(f.flow || VP_FLOW).map(m => `<option${h.vpModel === m ? ' selected' : ''}>${m}</option>`).join('')}</select></label>`;
       if (hasElec) html += `<div class="stack"><span class="stack-label">ไฟเข้า</span>${segHtml('h_phase', [['3', '3 เฟส'], ['1', '1 เฟส']], h.phase)}</div>`;
       if (f.refr) html += `<div class="stack"><span class="stack-label">ชนิดน้ำยา</span>${segHtml('h_refr', Object.keys(REFR), h.refr)}</div>`;
       if (f.pumpState) html += `<div class="stack"><span class="stack-label">สถานะปั๊ม</span>${segHtml('h_pumpState', ['เปิด', 'ปิด'], h.pumpState)}</div>
@@ -1190,12 +1245,14 @@
   }
   const calcInner = (calc) => calc.map(c => `<span class="${c.st || ''}">${esc(c.l)} <b>${fmt(c.v)}</b> ${esc(c.u)}${c.st ? ` ${VERDICT[c.st].g}` : ''}</span>`).join('');
 
+  // ไม่เสร็จ and ไม่ได้ทำ both need a reason typed under the task
+  const NEEDS_WHY = (s) => s === 'notdone' || s === 'skip';
   function taskHtml(t, needed) {
     const st = S.t[t.id] || '';
     return `<div class="task${needed ? '' : ' off'}" data-task="${esc(t.id)}">
       <div class="it-head"><span class="it-no">${esc(t.id)}</span><div class="it-text"><div class="it-title">${esc(t.label)}</div>${needed ? '' : '<div class="it-spec">ไม่อยู่ในรอบนี้</div>'}</div></div>
-      ${segHtml(`t_${t.id}`, [['done', '✓ เสร็จ', 'done'], ['notdone', '✕ ไม่เสร็จ', 'notdone']], st)}
-      <textarea class="note" data-tn="${esc(t.id)}" placeholder="เหตุผล / สิ่งที่พบ (จำเป็น)" aria-label="เหตุผลที่ข้อ ${esc(t.id)} ไม่เสร็จ" ${st === 'notdone' ? '' : 'hidden'}>${esc(S.tn[t.id] || '')}</textarea>
+      ${segHtml(`t_${t.id}`, [['done', '✓ เสร็จ', 'done'], ['notdone', '✕ ไม่เสร็จ', 'notdone'], ['skip', '– ไม่ได้ทำ', 'skip']], st)}
+      <textarea class="note" data-tn="${esc(t.id)}" placeholder="เหตุผล / สิ่งที่พบ (จำเป็น)" aria-label="เหตุผลของข้อ ${esc(t.id)}" ${NEEDS_WHY(st) ? '' : 'hidden'}>${esc(S.tn[t.id] || '')}</textarea>
     </div>`;
   }
 
@@ -1302,14 +1359,15 @@
         if (st === 'watch') watch.push({ item, l: c.l, v: vals[c.k], u: c.u });
       });
     });
-    // Section 2 is required: every task of the round needs เสร็จ or ไม่เสร็จ picked before saving
-    // (ไม่ได้ทำ is no longer offered; older results that used it still read and print as before)
+    // Section 2 is required: every task of the round needs เสร็จ, ไม่เสร็จ or ไม่ได้ทำ picked before saving
+    const skipped = [];
     (form.t || []).filter(t => isNeeded(form, t, h)).forEach(t => {
       total++;
       if (S.t[t.id]) filled++; else missingTasks.push(t);
       if (S.t[t.id] === 'notdone') notDone.push(t);
+      if (S.t[t.id] === 'skip') skipped.push(t);
     });
-    return { filled, total, ng, watch, notDone, missingTasks };   // section 3 is advice: never counted here
+    return { filled, total, ng, watch, notDone, skipped, missingTasks };   // section 3 is advice: never counted here
   }
   function updateTally() {
     const r = tally();
@@ -1395,8 +1453,8 @@
         const box = document.querySelector(`[data-task="${CSS.escape(id)}"]`);
         box.classList.remove('missing');
         const note = box.querySelector('textarea');
-        note.hidden = el.value !== 'notdone';
-        if (el.value === 'notdone' && !note.value) note.focus();
+        note.hidden = !NEEDS_WHY(el.value);
+        if (NEEDS_WHY(el.value) && !note.value) note.focus();
       } else if (el.name.startsWith('r_')) {
         const id = el.name.slice(2);
         (S.rr[id] = S.rr[id] || {}).r = el.value;
@@ -1423,9 +1481,9 @@
       errs.push(`ผลของหัวข้องาน ${r.missingTasks.length} ข้อ`);
       r.missingTasks.forEach(t => { const b = document.querySelector(`[data-task="${CSS.escape(t.id)}"]`); if (b) b.classList.add('missing'); });
     }
-    const noReason = r.notDone.filter(t => !String(S.tn[t.id] || '').trim());
+    const noReason = [...r.notDone, ...r.skipped].filter(t => !String(S.tn[t.id] || '').trim());
     if (noReason.length) {
-      errs.push(`เหตุผลของข้อที่ไม่เสร็จ (${noReason.map(t => t.id).join(', ')})`);
+      errs.push(`เหตุผลของข้อที่ไม่เสร็จ/ไม่ได้ทำ (${noReason.map(t => t.id).join(', ')})`);
       noReason.forEach(t => document.querySelector(`[data-tn="${CSS.escape(t.id)}"]`)?.classList.add('is-invalid'));
     }
     const errBox = $('formErr');
@@ -1501,12 +1559,13 @@
       h: { ...h, machine: h.machine.trim().toUpperCase() },
       v: values,
       t: Object.fromEntries(Object.entries(S.t).filter(([id]) => taskIds.has(id))),
-      tn: Object.fromEntries(Object.entries(S.tn).filter(([id]) => taskIds.has(id) && S.t[id] === 'notdone')),
+      tn: Object.fromEntries(Object.entries(S.tn).filter(([id]) => taskIds.has(id) && NEEDS_WHY(S.t[id]))),
       // 3.2 keeps what was typed plus the verdict and auto value as judged at save time; 3.3 keeps a snapshot of each finding
       // 3.2 advice: only the checks something was entered for, with the verdict of their own readings
       rr: Object.fromEntries(rrRows(form.id).filter(x => Object.values(S.rr[x.id] || {}).some(v => String(v).trim()))
         .map(x => [x.id, { ...S.rr[x.id], st: rrEval(x.row, S.rr[x.id]).st }])),
-      result: { ng: r.ng.map(line), watch: r.watch.map(line), notDone: r.notDone.map(x => ({ id: x.id, label: x.label, detail: S.tn[x.id] || '' })) },
+      result: { ng: r.ng.map(line), watch: r.watch.map(line), notDone: r.notDone.map(x => ({ id: x.id, label: x.label, detail: S.tn[x.id] || '' })),
+        skipped: r.skipped.map(x => ({ id: x.id, label: x.label, detail: S.tn[x.id] || '' })) },
       savedAt: t.toISOString()
     };
     const all = store.get(HIST, []);
@@ -1536,7 +1595,7 @@
   function findingsHtml(rec) {
     const sec = (title, kind, list) => list.length ? `<section class="group"><h2 class="group-h"><span>${title}</span><span class="num">${list.length} ข้อ</span></h2>
       <div class="card">${list.map(x => findRow(kind, x)).join('')}</div></section>` : '';
-    return sec('นอกเกณฑ์', 'ng', rec.result.ng) + sec('ไม่เสร็จ', 'ng', rec.result.notDone) + sec('เฝ้าระวัง', 'watch', rec.result.watch);
+    return sec('นอกเกณฑ์', 'ng', rec.result.ng) + sec('ไม่เสร็จ', 'ng', rec.result.notDone) + sec('ไม่ได้ทำ', 'watch', rec.result.skipped || []) + sec('เฝ้าระวัง', 'watch', rec.result.watch);
   }
   // The optional 3.2 advice entries of a saved result, shown apart from its findings
   function adviceHtml(rec) {
@@ -1610,7 +1669,8 @@
   // Values in navy, out-of-range in red; rows outside the job / PM round stay listed in grey, as on that sheet.
   // =====================================================================
   const S1_TITLE = { EF: 'Exhaust fan / Process exhaust fan', SF: 'Supply fan / FFU', VF: 'Ventilation fan', AHU: 'Air handling unit', PCAC: 'Air condition unit',
-    BP: 'Blower pump', CFP: 'Chemical feed pump', HEX: 'Heat exchanger', VP: 'Vacuum pump (high vacuum)', WP: 'Water pump' };
+    BP: 'Blower pump', MX: 'Agitator mixer', CFP: 'Chemical feed pump', HEX: 'Heat exchanger', VP: 'Vacuum pump (high vacuum)', VPL: 'Water ring vacuum pump (low vacuum)', WP: 'Water pump' };
+  const RULES = `<span class="rules" aria-hidden="true">${'<i></i>'.repeat(40)}</span>`;   // ruled lines; the box's height decides how many show
   const S1_PERIOD = { '1M': '1 เดือน', '3M': '3 เดือน', '6M': '6 เดือน', '1Y': '1 ปี' };
   function buildStyle1(rec) {
     const f = formById(rec.form), h = rec.h, W = 794, H = 1123;
@@ -1643,13 +1703,15 @@
     // Section 1: one row per item; items with several readings get sub-rows (belt lines, U-G / V-G / W-G, points)
     const isB = (k) => k === 'b' || k.startsWith('b_') || /^b\d\d$/.test(k);
     const isA = (k) => k === 'a' || k.startsWith('a_') || /^a\d\d$/.test(k);
-    const wpAlignBody = (rec0 = rec) => {
-      const f0 = FIGS.wpAlign, av = (rec0.v && rec0.v['1.7']) || {};
+    const wpAlignBody = (id) => {
+      const f0 = FIGS.wpAlign, av = (rec.v && rec.v[id]) || {};
       const pins = Object.entries(f0.boxes).map(([bk, [x, y]]) => {
         const val = av[bk];
         return val ? `<span style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);font-size:11px;font-weight:700;color:#1D4ED8;white-space:nowrap">${esc(val)}</span>` : '';
       }).join('');
-      return `<div style="position:relative;display:block;width:100%;aspect-ratio:${f0.ar}"><img src="${f0.src}" style="width:100%;height:100%;display:block" alt="">${pins}</div>`;
+      // frame sized by padding-top (% of width), not aspect-ratio: iPhone Safari sizes aspect-ratio boxes in table cells wrongly
+      // and stretched the picture; padding keeps the shape everywhere, and holds the space before the picture loads
+      return `<div style="position:relative;display:block;width:100%;height:0;padding-top:${(100 / f0.ar).toFixed(3)}%"><img src="${f0.src}" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block" alt="">${pins}</div>`;
     };
     const rows1 = f.m.map(it => {
       const need = isNeeded(f, it, h), vals = need ? (rec.v[it.id] || {}) : {}, off = need ? '' : ' class="off"';
@@ -1661,7 +1723,9 @@
       // the spec as short as the paper sheet words it: the long ISO / tolerance wording lives in the reference cards
       const spec = esc(it.judge === 'iso' || it.type === 'vibTemp' ? 'ตารางมาตรฐาน3' : it.judge === 'vpflow' ? 'ตารางมาตรฐาน4' : (it.judge === 'refT' || it.type === 'refr') ? 'ตารางมาตรฐาน1' : it.type === 'v3' ? `±${it.tol}% ของ Std.` : specText(it, h));
       const head = (n) => {
-        const figImg = it.fig && FIGS[it.fig].inline ? `<img class="inl" src="${FIGS[it.fig].src}"${FIGS[it.fig].ar ? ` style="aspect-ratio:${FIGS[it.fig].ar}"` : ''} alt="">`
+        const figImg = it.fig && FIGS[it.fig].inline ? (FIGS[it.fig].ar
+            ? `<div style="position:relative;height:0;padding-top:${(100 / FIGS[it.fig].ar).toFixed(3)}%;margin-top:6px"><img src="${FIGS[it.fig].src}" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block" alt=""></div>`
+            : `<img class="inl" src="${FIGS[it.fig].src}" alt="">`)
           : it.fig === 'hexPlates' && (vals.v === 'Multi-pass' || vals.v === 'Single-pass') ? `<img class="inl" src="img/${vals.v === 'Multi-pass' ? 'hex_multi' : 'hex_single'}.png" style="height:175px;width:auto;max-width:100%;margin:4px auto 0" alt="">` : '';
         return `<td${n > 1 ? ` rowspan="${n}"` : ''} style="vertical-align:top">${esc(it.id)} ${esc(it.label)}${figImg}</td><td class="c"${n > 1 ? ` rowspan="${n}"` : ''}>${spec}</td>`;
       };
@@ -1671,13 +1735,13 @@
       }
       // belt lines and insulation readings: one line each, as on the sheet — label left, value, unit at the right edge
       const itemNote = f.id === 'WP' && it.id === '1.1' ? 'หลังแมกเนติก คอนแทคเตอร์'
-        : (f.id === 'VP' && it.id === '1.8') || (f.id === 'PCAC' && /^1\.(7|8|9|10|11|12|13)$/.test(it.id)) || ((f.id === 'BP' || f.id === 'CFP') && /^1\.[123]$/.test(it.id)) || (f.id === 'WP' && /^1\.[25]$/.test(it.id)) ? 'ค่าวัดหลังทำงาน' : '';
+        : (f.id === 'VP' && it.id === '1.8') || (f.id === 'PCAC' && /^1\.(7|8|9|10|11|12|13)$/.test(it.id)) || ((f.id === 'BP' || f.id === 'CFP' || f.id === 'MX') && /^1\.[123]$/.test(it.id)) || (f.id === 'VPL' && /^1\.(1|2|15)$/.test(it.id)) || (f.id === 'WP' && /^1\.[25]$/.test(it.id)) ? 'ค่าวัดหลังทำงาน' : '';
       // label | value centred in the cell | unit, in three fixed lanes so every line lines up
       const lvu = (l, val, u) => `<div class="lvu"><span>${l}</span><span>${val}</span><span>${u}</span></div>`;
       if (it.type === 'belt') return Array.from({ length: it.n }, (_, i) => `<tr${off}>${i === 0 ? head(it.n) : ''}<td colspan="2" class="c">เส้นที่ ${i + 1} : <span class="bv">${v({ k: `l${i + 1}` })}</span> Kg.</td>${i === 0 ? `<td class="rm" rowspan="${it.n}">${itemNote}</td>` : ''}</tr>`).join('');
       if (it.type === 'ins') return ['U-G', 'V-G', 'W-G'].map((k, i) => `<tr${off}>${i === 0 ? `<td rowspan="3" style="vertical-align:top">${esc(it.id)} ${esc(it.label)}</td>` : ''}<td class="c">${esc(it.spec)} &nbsp; ${k}</td><td colspan="2">${lvu('', v({ k }), '(MΩ)')}</td>${i === 0 ? `<td class="rm" rowspan="3">${itemNote}</td>` : ''}</tr>`).join('');
       if (it.type === 'vunb') return `<tr${off}>${head(1)}<td colspan="2">${calcFill}</td><td class="rm"></td></tr>`;
-      if (it.type === 'align') return `<tr${off}><td style="vertical-align:top;border-right:none">${esc(it.id)} ${esc(it.label)}</td><td colspan="4" style="padding:4px 8px;border-left:none">${wpAlignBody()}</td></tr>`;
+      if (it.type === 'align') return `<tr${off}><td style="vertical-align:top;border-right:none">${esc(it.id)} ${esc(it.label)}</td><td colspan="4" style="padding:4px 8px;border-left:none">${wpAlignBody(it.id)}</td></tr>`;
       if (it.type === 'grid') {
         const avgs = need ? computed(it, vals, h, rec.v) : [];
         const avgCell = (k) => { const c = avgs.find(x => x.k === k); const val = c && isFinite(c.v) ? pen(fmt(c.v), c.st === 'ng') : ''; return lvu('', val, esc(it.unit || 'm/s')); };
@@ -1707,17 +1771,17 @@
         return `<tr${off}>${i === 0 ? head(subs.length) : ''}<td colspan="2"${isAvg ? ' style="background:#F2F4F7;font-weight:700;border-top:1.5px solid #444"' : ''}>${body}</td>${i === 0 ? `<td class="rm"${subs.length > 1 ? ` rowspan="${subs.length}"` : ''}>${note}</td>` : ''}</tr>`;
       }).join('');
     }).join('');
-    const cols1 = f.id === 'VP' || f.id === 'BP' ? ['40%', '13%', '18%', '18%', '11%'] : ['35%', '16%', '18%', '18%', '13%'];
+    const cols1 = ['VP', 'VPL', 'BP', 'MX'].includes(f.id) ? ['40%', '13%', '18%', '18%', '11%'] : ['35%', '16%', '18%', '18%', '13%'];
     const sec1 = `<div class="sec">1. การตรวจข้อมูลการทำงานของเครื่อง</div><table><colgroup>${cols1.map(w => `<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr><th>หัวข้อการตรวจ</th><th>ค่ากำหนดเฉพาะ</th><th>ค่าวัดก่อนทำงาน</th><th>ค่าวัดหลังทำงาน</th><th>หมายเหตุ</th></tr></thead><tbody>${rows1}</tbody></table>`;
 
     // Section 2: tick boxes; the reason of a task not done goes in its remark
-    const sec2 = f.t ? `<div class="sec">2. หัวข้อตรวจเช็ค/ทำงาน</div><table><colgroup><col><col style="width:52px"><col style="width:52px"><col style="width:150px"></colgroup>
-      <thead><tr><th style="text-align:left">หัวข้อการตรวจเช็ค/ทำงาน</th><th>เสร็จ</th><th>ไม่เสร็จ</th><th>หมายเหตุ</th></tr></thead><tbody>${f.t.map(t => {
+    const sec2 = f.t ? `<div class="sec">2. หัวข้อตรวจเช็ค/ทำงาน</div><table><colgroup><col><col style="width:52px"><col style="width:52px"><col style="width:52px"><col style="width:150px"></colgroup>
+      <thead><tr><th style="text-align:left">หัวข้อการตรวจเช็ค/ทำงาน</th><th>เสร็จ</th><th>ไม่เสร็จ</th><th>ไม่ได้ทำ</th><th>หมายเหตุ</th></tr></thead><tbody>${f.t.map(t => {
         const need = isNeeded(f, t, h);
         if (!need) return '';
-        const s = rec.t[t.id], why = need && s === 'notdone' ? (rec.tn || {})[t.id] : '';
-        return `<tr${need ? '' : ' class="off"'}><td>${esc(t.id)} ${esc(t.label)}</td><td class="c"><span class="bx">${s === 'done' ? '✓' : ''}</span></td><td class="c"><span class="bx">${s === 'notdone' ? '✓' : ''}</span></td><td class="rm">${pen(why, true)}</td></tr>`;
+        const s = rec.t[t.id], why = need && NEEDS_WHY(s) ? (rec.tn || {})[t.id] : '';
+        return `<tr${need ? '' : ' class="off"'}><td>${esc(t.id)} ${esc(t.label)}</td><td class="c"><span class="bx">${s === 'done' ? '✓' : ''}</span></td><td class="c"><span class="bx">${s === 'notdone' ? '✓' : ''}</span></td><td class="c"><span class="bx">${s === 'skip' ? '✓' : ''}</span></td><td class="rm">${pen(why, true)}</td></tr>`;
       }).join('')}</tbody></table>` : '';
 
     // Advice entries of section 3, when any were filled
@@ -1740,7 +1804,7 @@
       r === 'iso' ? ['ตารางมาตรฐาน3 (ISO 10816)', '<img src="img/iso_10816.png" alt="">']
       : r === 'belt' ? ['ตารางมาตรฐาน2', '<img src="img/belt_table.png" alt="">']
       : r === 'refr' ? ['ตารางมาตรฐาน1 · น้ำยา', tbl(['น้ำยา', 'ดูด °C', 'ดูด psi', 'จ่าย °C', 'จ่าย psi'], Object.entries(REFR).map(([k, x]) => [k, x.sT.join('–'), x.sP.join('–'), x.dT.join('–'), x.dP.join('–')]))]
-      : ['ตารางมาตรฐาน4 · Flow', tbl(['Model', 'l/min', 'm³/hr'], Object.entries(VP_FLOW).map(([k, x]) => [k, ...x]))]));
+      : ['ตารางมาตรฐาน4 · Flow', tbl(['Model', 'l/min', 'm³/hr'], flowRows(f.flow || VP_FLOW))]));
     if (f.id === 'AHU') cards.push(['สูตรคำนวณปริมาณลม (CMM)', `<svg viewBox="0 0 360 190" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%" font-family="Sarabun, Tahoma, Arial, sans-serif" fill="#111">
 <text x="180" y="16" text-anchor="middle" font-size="12.5" font-weight="700">CMM (m³/min) = Air Velocity (m/sec) × Area (m²) × 60</text>
 <circle cx="45" cy="64" r="27" fill="none" stroke="#111" stroke-width="1.7"/>
@@ -1755,12 +1819,12 @@
 <text x="130" y="170" font-size="10.5" font-weight="700" font-style="italic">Area (A) = Width (W) × Height (H)</text>
 </svg>`, true]);
     // Footer: comment, the scope of each round, signatures, motto
-    const note = [h.comment, ...Object.entries(rec.tn || {}).map(([id, n]) => `ข้อ ${id} ไม่เสร็จ: ${n}`)].filter(Boolean).join(' · ');
+    const note = [h.comment, ...Object.entries(rec.tn || {}).map(([id, n]) => `ข้อ ${id} ${rec.t[id] === 'skip' ? 'ไม่ได้ทำ' : 'ไม่เสร็จ'}: ${n}`)].filter(Boolean).join(' · ');
     // With a single reference card, the comment box sits beside it as a card of the same size (half and half);
     // otherwise it runs full width under the cards
     const besideOne = cards.length === 1;
-    const card = ([t, body, , hgt]) => `<div class="s1card"${hgt ? ` style="height:${hgt}px"` : ''}><div class="s1card-t">${esc(t)}</div><div class="s1card-i">${body}</div></div>`;
-    const cmtCard = (hgt) => `<div class="s1card cmt-card"${hgt ? ` style="height:${hgt}px"` : ''}><div class="s1card-t">Other Comment / Alarm Code</div><div class="cmt-lines">${pen(note)}</div></div>`;
+    const card = ([t, body, , hgt]) => `<div class="s1card"${hgt ? ` style="height:calc(${hgt}px + var(--ch, 0px))"` : ''}><div class="s1card-t">${esc(t)}</div><div class="s1card-i">${body}</div></div>`;
+    const cmtCard = (hgt) => `<div class="s1card cmt-card"${hgt ? ` style="height:calc(${hgt}px + var(--ch, 0px))"` : ''}><div class="s1card-t">Other Comment / Alarm Code</div><div class="cmt-lines">${RULES}<span class="cmt-txt">${pen(note)}</span></div></div>`;
     const refs = !cards.length ? '' : besideOne
       ? `<div class="refs" style="grid-template-columns:1fr 1fr">${card(cards[0])}${cmtCard(cards[0][3])}</div>`
       : `<div class="refs" style="grid-template-columns:${cards.map(c => c[2] ? '1.7fr' : '1fr').join(' ')}">${cards.map(card).join('')}</div>`;
@@ -1769,19 +1833,46 @@
     const html = `<div class="s1"><div class="s1-in">
       <div class="hdr"><div class="logo"><img src="img/murata_logo.png" alt="Murata"></div><div class="title">Inspection sheet of ${esc(S1_TITLE[f.id] || f.name)}</div><div class="code">${esc(f.code)}</div></div>
       ${meta}${sec1}${sec2}${sec3}${refs}
-      ${besideOne ? '' : `<div class="cmt"><div class="cmt-l">Other Comment / Alarm Code</div><div class="cmt-v">${pen(note)}</div></div>`}
-      ${notes}
+      ${besideOne ? '' : `<div class="cmt"><div class="cmt-l">Other Comment / Alarm Code</div><div class="cmt-v">${RULES}<span class="cmt-txt">${pen(note)}</span></div></div>`}
+      <div class="foot">${notes}
       <div class="sigs">${['Engineer', 'Checker', 'Service By', 'Customer'].map(r => `<div class="sig"><div class="sig-v">${r === 'Service By' ? esc(h.inspector) : ''}</div><div>${r}</div></div>`).join('')}</div>
-      <div class="motto">"มาตรฐานคือหัวใจของการทำงานของเรา"</div>
+      <div class="motto">"มาตรฐานคือหัวใจของการทำงานของเรา"</div></div>
     </div></div>`;
     return { html, W, H };
   }
   // Once the page is in the document: shrink a long form's content so it stays on one A4 page
   function fitS1(root) {
     root.querySelectorAll('.s1').forEach(pg => {
-      const inn = pg.querySelector('.s1-in'); inn.style.transform = ''; inn.style.width = '';
+      const inn = pg.querySelector('.s1-in'); inn.style.cssText = '';
       // 8 px spare: phones lay Thai text out a little taller than the preview measures
       const room = pg.clientHeight - 2 * inn.offsetTop - 8;
+      // A short sheet (few items in this round) shares its leftover paper, in this order, each step capped so
+      // nothing looks stretched: taller table rows, bigger reference cards, ruled lines in the comment box;
+      // whatever is still left goes above the footer, so the signatures sit at the bottom of the page
+      const left = () => room - inn.scrollHeight;
+      if (left() > 4) {
+        const rows = inn.querySelectorAll('.sec + table > tbody > tr').length;
+        if (rows) inn.style.setProperty('--rp', `${Math.min(5, left() * 0.45 / (2 * rows)).toFixed(2)}px`);
+        if (inn.querySelector('.s1card')) inn.style.setProperty('--ch', `${Math.max(0, Math.min(90, left() * 0.4)).toFixed(0)}px`);
+        if (inn.querySelector('.cmt-v')) inn.style.setProperty('--cm', `${Math.max(0, Math.min(110, Math.floor(left() * 0.7 / 22) * 22))}px`);
+        // still short (daily logs, 1M rounds): enlarge the whole sheet, up to 25%, laid out narrower so it keeps the page width
+        let z = Math.min(1.25, room / inn.scrollHeight);
+        for (let i = 0; i < 6 && z > 1.01; i++) {
+          inn.style.transform = `scale(${z})`; inn.style.width = `${742 / z}px`;
+          if (inn.scrollHeight * z <= room) break;
+          z = Math.max(1, Math.min(z * 0.995, room / inn.scrollHeight));
+        }
+        if (z <= 1.01) { inn.style.transform = ''; inn.style.width = ''; z = 1; }
+        let rest = (room - inn.scrollHeight * z) / z;   // the footer margin is scaled too
+        // a big gap left even so (a daily log with a few lines): more lines to write on, rather than blank paper
+        if (rest > 60 && inn.querySelector('.cmt-v')) {
+          const more = Math.floor((rest - 20) / 22) * 22;
+          inn.style.setProperty('--cm', `${(parseFloat(inn.style.getPropertyValue('--cm')) || 0) + more}px`);
+          rest = (room - inn.scrollHeight * z) / z;
+        }
+        if (rest > 0) inn.style.setProperty('--ft', `${Math.floor(rest)}px`);
+        return;
+      }
       // Shrinking widens the content box, and full-width pictures grow taller with it: measure again until it fits
       let k = 1;
       for (let i = 0; i < 6 && inn.scrollHeight * k > room; i++) {
@@ -1813,7 +1904,7 @@
       if (!$('pprevIn')) return;
       fitS1($('pprevIn'));
       const a = $('pprevIn').querySelector('.s1-in'), b = $('printHost').querySelector('.s1-in');
-      b.style.transform = a.style.transform; b.style.width = a.style.width;
+      b.style.cssText = a.style.cssText;   // the fit: scale, width and the fill-the-page spacing
     };
     refit();
     Promise.all([imgsIn($('pprevIn')), document.fonts ? document.fonts.ready : 0]).then(refit);
@@ -1919,7 +2010,8 @@
   // Typing a reading for "จุดที่ N" lights box N on that item's picture
   function markPoint(el, on) {
     const item = el.dataset && el.dataset.it && form && form.m.find(i => i.id === el.dataset.it);
-    const n = item && item.type === 'vibTemp' && item.fig && (el.dataset.k.match(/^[vt](\d+)$/) || [])[1];
+    // a vibTemp item names the point in its cell keys; a single-point item (pt) is that point throughout
+    const n = item && item.fig && (item.pt ? String(item.pt) : item.type === 'vibTemp' && (el.dataset.k.match(/^[vt](\d+)$/) || [])[1]);
     if (!n) return;
     document.querySelectorAll(`.fig[data-fig="${item.fig}"] .fig-pt`).forEach(p => p.classList.toggle('on', on && p.dataset.pt === n));
   }

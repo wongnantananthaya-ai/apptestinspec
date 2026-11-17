@@ -1,11 +1,11 @@
 ﻿// Offline support: keeps every file the app needs on the phone.
 // Online: always fetch the newest file (and refresh the stored copy); slow or no network: use the stored copy.
 // Add any new file the app loads to FILES, and bump CACHE when the list changes.
-const CACHE = 'insp-v29';
+const CACHE = 'insp-v30';
 const FILES = [
   './', 'index.html', 'manifest.json',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
-  ...['bp_points', 'fan_points', 'hex_plates', 'hex_multi', 'hex_single', 'hex_rods', 'vp_points', 'wp_alignment', 'wp_points', 'iso_10816', 'belt_table', 'murata_logo'].map(n => `img/${n}.png`), 'img/cmm_formula.jpg', 'img/cfp_fig.png',
+  ...['bp_points', 'fan_points', 'hex_plates', 'hex_multi', 'hex_single', 'hex_rods', 'vp_points', 'vpl_points', 'mx_points', 'wp_alignment', 'wp_points', 'iso_10816', 'belt_table', 'murata_logo'].map(n => `img/${n}.png`), 'img/cmm_formula.jpg', 'img/cfp_fig.png',
 ];
 const WAIT_MS = 3000;   // field networks can hang; after this the stored copy answers
 

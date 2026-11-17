@@ -235,8 +235,9 @@
     /* ---------- Diagrams from the paper sheet ---------- */
     .fig { display: block; width: 100%; margin-top: 12px; padding: 0; border-radius: 10px; overflow: hidden; background: #FFFFFF; border: 0.5px solid var(--sep); text-align: left; }
     .fig img { display: block; width: 100%; height: auto; max-height: 420px; object-fit: contain; background: #FFFFFF; }
-    .fig .fig-pic { position: relative; display: block; width: min(100%, calc(420px * var(--ar))); aspect-ratio: var(--ar); margin: 0 auto; padding: 0; background: none; }
-    .fig .fig-pic img { width: 100%; height: 100%; max-height: none; }
+    .fig .fig-pic { position: relative; display: block; width: min(100%, calc(420px * var(--ar))); margin: 0 auto; padding: 0; background: none; }
+    /* the picture keeps its own shape (no aspect-ratio box: older iPhone Safari stretched it); markers sit on it by % */
+    .fig .fig-pic img { width: 100%; height: auto; max-height: none; }
     .fig-pt { position: absolute; transform: translate(-50%, -50%); border: 3px solid transparent; border-radius: 6px; pointer-events: none; transition: border-color .15s, background-color .15s, box-shadow .15s; }
     .fig-pt.on { border-color: var(--ng); background: rgba(194, 31, 31, 0.14); box-shadow: 0 0 0 4px rgba(194, 31, 31, 0.18); }
     .fig-val { position: absolute; transform: translate(-50%, -50%); font-style: normal; font-size: clamp(10px, 2.6vw, 14px); font-weight: 700; color: #1D4ED8; pointer-events: none; white-space: nowrap; }
@@ -339,7 +340,7 @@
     /* One A4 page: 794 × 1123 px at 96 dpi; .s1-in shrinks to fit when a long form runs over (fitS1) */
     .s1 { position: relative; width: 794px; height: 1123px; overflow: hidden; background: #FFFFFF; color: #111; font-family: "Sarabun", "Tahoma", "Leelawadee UI", "Segoe UI", Arial, sans-serif; font-size: 10.5px; line-height: 1.28; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .s1-in { position: absolute; left: 26px; top: 23px; width: 742px; transform-origin: top left; }
-    .s1 .hdr { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; border-bottom: 2px solid #1F3A68; padding-bottom: 4px; margin-bottom: 5px; }
+    .s1 .hdr { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; border-bottom: 2px solid #D7000F; padding-bottom: 4px; margin-bottom: 5px; }
     .s1 .logo { display: flex; flex-direction: column; line-height: 1; }
     .s1 .logo img { display: block; height: 34px; width: auto; }
     .s1 .title { text-align: center; font-size: 13.5px; font-weight: 800; letter-spacing: 0.2px; text-transform: uppercase; }
@@ -365,7 +366,7 @@
     .s1 .checks { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; }
     .s1 .chk { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; white-space: nowrap; }
     .s1 .bx { display: inline-grid; place-items: center; width: 11px; height: 11px; border: 1.2px solid #222; background: #FFFFFF; font-size: 10px; line-height: 1; font-weight: 700; color: #1F3A68; vertical-align: middle; }
-    .s1 .sec { font-size: 11px; font-weight: 800; padding: 1.5px 0 2.5px 6px; border-left: 3.5px solid #1F3A68; color: #1F3A68; margin-bottom: 2px; }
+    .s1 .sec { font-size: 11px; font-weight: 800; padding: 1.5px 0 2.5px 6px; border-left: 3.5px solid #D7000F; color: #1F3A68; margin-bottom: 2px; }
     .s1 .c { text-align: center; }
     /* remark cells (หมายเหตุ): their words centred, readings in them too */
     .s1 .rm { text-align: center; }
@@ -1708,7 +1709,9 @@
         const val = av[bk];
         return val ? `<span style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);font-size:11px;font-weight:700;color:#1D4ED8;white-space:nowrap">${esc(val)}</span>` : '';
       }).join('');
-      return `<div style="position:relative;display:block;width:100%;aspect-ratio:${f0.ar}"><img src="${f0.src}" style="width:100%;height:100%;display:block" alt="">${pins}</div>`;
+      // frame sized by padding-top (% of width), not aspect-ratio: iPhone Safari sizes aspect-ratio boxes in table cells wrongly
+      // and stretched the picture; padding keeps the shape everywhere, and holds the space before the picture loads
+      return `<div style="position:relative;display:block;width:100%;height:0;padding-top:${(100 / f0.ar).toFixed(3)}%"><img src="${f0.src}" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block" alt="">${pins}</div>`;
     };
     const rows1 = f.m.map(it => {
       const need = isNeeded(f, it, h), vals = need ? (rec.v[it.id] || {}) : {}, off = need ? '' : ' class="off"';
@@ -1720,7 +1723,9 @@
       // the spec as short as the paper sheet words it: the long ISO / tolerance wording lives in the reference cards
       const spec = esc(it.judge === 'iso' || it.type === 'vibTemp' ? 'ตารางมาตรฐาน3' : it.judge === 'vpflow' ? 'ตารางมาตรฐาน4' : (it.judge === 'refT' || it.type === 'refr') ? 'ตารางมาตรฐาน1' : it.type === 'v3' ? `±${it.tol}% ของ Std.` : specText(it, h));
       const head = (n) => {
-        const figImg = it.fig && FIGS[it.fig].inline ? `<img class="inl" src="${FIGS[it.fig].src}"${FIGS[it.fig].ar ? ` style="aspect-ratio:${FIGS[it.fig].ar}"` : ''} alt="">`
+        const figImg = it.fig && FIGS[it.fig].inline ? (FIGS[it.fig].ar
+            ? `<div style="position:relative;height:0;padding-top:${(100 / FIGS[it.fig].ar).toFixed(3)}%;margin-top:6px"><img src="${FIGS[it.fig].src}" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block" alt=""></div>`
+            : `<img class="inl" src="${FIGS[it.fig].src}" alt="">`)
           : it.fig === 'hexPlates' && (vals.v === 'Multi-pass' || vals.v === 'Single-pass') ? `<img class="inl" src="img/${vals.v === 'Multi-pass' ? 'hex_multi' : 'hex_single'}.png" style="height:175px;width:auto;max-width:100%;margin:4px auto 0" alt="">` : '';
         return `<td${n > 1 ? ` rowspan="${n}"` : ''} style="vertical-align:top">${esc(it.id)} ${esc(it.label)}${figImg}</td><td class="c"${n > 1 ? ` rowspan="${n}"` : ''}>${spec}</td>`;
       };
